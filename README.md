@@ -36,14 +36,10 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 - Immer et al. (2021) – *“Improving Predictions of Neural Networks via Monte Carlo Methods, the Laplace Approximation, and Bayesian Neural Networks.”* [[arXiv](https://arxiv.org/abs/2106.14806)]  
 - Kristiadi et al. (2020) – *“Being Bayesian, Even Just a Bit, Fixes Overconfidence in ReLU Networks.”* [[ICML](http://proceedings.mlr.press/v119/kristiadi20a/kristiadi20a.pdf)] (for the original LLA insight)
 
-#### Empirical Last-Layer Laplace Approximation (ELLA)
-
 **Empirical Last-Layer Laplace Approximation (ELLA)** specifically accelerates and approximates the last-layer Laplace by using subsets of data, Nyström approximations, or other low-rank techniques to handle larger models and datasets. While it focuses on the last layer, its emphasis on scalability and memory efficiency makes it appealing for modern architectures.
 
 - *Source:* Deng et al. (2022) proposed an accelerated linearized Laplace method (ELLA) with a Nyström approximation to the network’s tangent kernel for improved scalability.  
   [[NeurIPS](https://proceedings.neurips.cc/paper_files/paper/2022/hash/5d826cc6b2b713e3b9aad0b67c3b0f79-Abstract-Conference.html)]
-
-#### Variational Last-Layer Laplace Approximation (VaLLA)
 
 **Variational Last-Layer Laplace Approximation (VaLLA)** is another variant of LLA that leverages sparse Gaussian processes in function space. Rather than computing Hessians directly, VaLLA uses variational inference to fit a GP whose mean is anchored at the DNN output. In practice, VaLLA can yield high-quality calibration with sub-linear complexity in the dataset size.
 
