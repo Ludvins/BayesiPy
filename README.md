@@ -27,20 +27,19 @@ In the sections below, we explain each technique and cite their original referen
 BayesiPy integrates the full suite of [Linearized Laplace approximations](https://github.com/aleximmer/Laplace) proposed by Immer et al. (2021) and subsequent works. The idea is to treat a pre-trained neural network $f(\cdot; \theta)$ at its MAP estimate $\theta_\text{MAP}$ and approximate the posterior over $\theta$ locally by a Gaussian whose mean is $\theta_\text{MAP}$ and whose covariance is derived from the (generalized) Gauss-Newton or Hessian of the negative log-likelihood. By “linearizing” the network’s parameters around the MAP solution, we obtain:
 
 - **Full Laplace**: Uses the full Hessian matrix. Most accurate but extremely memory-intensive for large models.  
-- **Layerwise Laplace**: Applies the Laplace approximation separately (or in block structures) for different layers. Balances accuracy and memory usage.  
 - **Subnetwork Laplace**: Selects a subset of the network’s parameters (e.g., a subnetwork or certain layers) for the Laplace approximation, reducing complexity.  
 - **Last-Layer Laplace (LLA)**: Approximates only the last layer’s weights by a Gaussian, holding the rest of the network fixed as a deterministic feature extractor.  
-- **Curvature Approximations**: You can choose from diagonal, KFAC, Kron, or exact Hessian approximations to balance computational cost with approximation accuracy.
+- **Curvature Approximations**: You can choose from diagonal, KFAC, or exact Hessian approximations to balance computational cost with approximation accuracy.
 
 **References**:  
 - Immer et al. (2021) – *“Improving Predictions of Neural Networks via Monte Carlo Methods, the Laplace Approximation, and Bayesian Neural Networks.”* [[arXiv](https://arxiv.org/abs/2106.14806)]  
 
-**Empirical Last-Layer Laplace Approximation (ELLA)** specifically accelerates and approximates the last-layer Laplace by using subsets of data, Nyström approximations, or other low-rank techniques to handle larger models and datasets. While it focuses on the last layer, its emphasis on scalability and memory efficiency makes it appealing for modern architectures.
+**Accelerated Linearized Laplace Approximation (ELLA)** specifically accelerates and approximates linearized Laplace approximation by using subsets of data, Nyström approximations and other low-rank techniques to handle larger models and datasets. Its emphasis on scalability and memory efficiency makes it appealing for modern architectures.
 
 - *Source:* Deng et al. (2022) proposed an accelerated linearized Laplace method (ELLA) with a Nyström approximation to the network’s tangent kernel for improved scalability.  
   [[NeurIPS](https://proceedings.neurips.cc/paper_files/paper/2022/hash/5d826cc6b2b713e3b9aad0b67c3b0f79-Abstract-Conference.html)]
 
-**Variational Last-Layer Laplace Approximation (VaLLA)** is another variant of LLA that leverages sparse Gaussian processes in function space. Rather than computing Hessians directly, VaLLA uses variational inference to fit a GP whose mean is anchored at the DNN output. In practice, VaLLA can yield high-quality calibration with sub-linear complexity in the dataset size.
+**Variational Linearized Laplace Approximation (VaLLA)** is another variant of LLA that leverages sparse Gaussian processes in function space. Rather than computing Hessians directly, VaLLA uses variational inference to fit a GP whose mean is anchored at the DNN output. In practice, VaLLA can yield high-quality calibration with sub-linear complexity in the dataset size.
 
 - *Source:* Ortega et al. (2024a) – *“Variational Linearized Laplace Approximation for Bayesian Deep Learning.”* [[ICML](https://proceedings.mlr.press/v235/ortega24a.html)]
 
@@ -54,9 +53,9 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 
 ---
 
-### 3. Spectral-normalized Gaussian Process (SNGP)
+### 3. Spectral-Normalized Gaussian Process (SNGP)
 
-**Spectral-normalized Gaussian Process (SNGP)** integrates a GP layer at the network’s output and enforces a distance-preserving feature space via spectral normalization. This makes the network’s predictions *distance-aware*, which helps with out-of-distribution (OOD) detection. SNGP typically involves a re-training or fine-tuning step to incorporate the spectral normalization in earlier layers.
+**Spectral-Normalized Gaussian Process (SNGP)** integrates a GP layer at the network’s output and enforces a distance-preserving feature space via spectral normalization. This makes the network’s predictions *distance-aware*, which helps with out-of-distribution (OOD) detection. SNGP typically involves a re-training or fine-tuning step to incorporate the spectral normalization in earlier layers.
 
 - *Source:* Liu et al. (2020) – *“Simple and Principled Uncertainty Estimation with Deterministic Deep Learning via Distance Awareness.”* [[NeurIPS](https://proceedings.neurips.cc/paper/2020/hash/4089e94f74c885f1bfb1e77f2711b67b-Abstract.html)]
 
@@ -64,7 +63,7 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 
 ### 4. Fixed-Mean Gaussian Process (FMGP)
 
-**Fixed-Mean Gaussian Process (FMGP)** is a method where we overlay a GP whose mean is fixed to the pre-trained DNN output. This GP focuses on learning the uncertainty (variance) around the DNN’s predictions. FM-GP can be trained post-hoc with a sparse variational approach, scaling to large datasets and architectures. Empirically, it often outperforms other methods in calibration quality with moderate computational overhead.
+**Fixed-Mean Gaussian Process (FMGP)** is a method where we overlay a GP whose mean is fixed to the pre-trained DNN output. This GP focuses on learning the uncertainty (variance) around the DNN’s predictions. FMGP can be trained post-hoc with a sparse variational approach, scaling to large datasets and architectures. Empirically, it often outperforms other methods in calibration quality with moderate computational overhead.
 
 - *Source:* Ortega et al. (2024b) – *“Fixed-Mean Gaussian Processes for Post-hoc Bayesian Deep Learning.”* [[arXiv](https://arxiv.org/abs/2412.04177)]
 
@@ -83,7 +82,7 @@ Below is a brief summary comparing these techniques, with insights drawn from bo
 | **VaLLA**             | Excellent calibration (function-space GP perspective) with sub-linear complexity in data size                    | Requires iterative variational optimization; can be slower to converge; more complicated inference step                                                                                                                                                                         | High-fidelity uncertainty for large datasets or critical applications                                                                                     |
 | **MFVI**              | Classic fully Bayesian approach over weights; easy to implement (Bayes by Backprop)                              | Mean-field assumption often underestimates uncertainty; can be very slow or memory-heavy for large networks                                                                                                                                                                     | For those wanting a “full BNN” approach or partial Bayesian layers with factorized posteriors                                                             |
 | **SNGP**              | Distance-aware; single forward-pass at inference; strong OOD detection                                           | Typically requires training from scratch or at least heavy fine-tuning with spectral normalization; not purely post-hoc                                                                                                                  | Production-friendly if you can integrate spectral norms and a GP head early on                                                                            |
-| **FM-GP**             | High-quality calibration; scalable to large data; easy to wrap any pre-trained model (fixed mean)                | Extra training to fit the GP’s variational parameters; number of inducing points is a hyperparameter that can affect memory usage                                                                                                                                               | Post-hoc method offering advanced Bayesian-quality uncertainty for large-scale tasks without heavy retraining                                             |
+| **FMGP**             | High-quality calibration; scalable to large data; easy to wrap any pre-trained model (fixed mean)                | Extra training to fit the GP’s variational parameters; number of inducing points is a hyperparameter that can affect memory usage                                                                                                                                               | Post-hoc method offering advanced Bayesian-quality uncertainty for large-scale tasks without heavy retraining                                             |
 
 ---
 
