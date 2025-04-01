@@ -34,7 +34,6 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 
 **References**:  
 - Immer et al. (2021) – *“Improving Predictions of Neural Networks via Monte Carlo Methods, the Laplace Approximation, and Bayesian Neural Networks.”* [[arXiv](https://arxiv.org/abs/2106.14806)]  
-- Kristiadi et al. (2020) – *“Being Bayesian, Even Just a Bit, Fixes Overconfidence in ReLU Networks.”* [[ICML](http://proceedings.mlr.press/v119/kristiadi20a/kristiadi20a.pdf)] (for the original LLA insight)
 
 **Empirical Last-Layer Laplace Approximation (ELLA)** specifically accelerates and approximates the last-layer Laplace by using subsets of data, Nyström approximations, or other low-rank techniques to handle larger models and datasets. While it focuses on the last layer, its emphasis on scalability and memory efficiency makes it appealing for modern architectures.
 
