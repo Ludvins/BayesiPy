@@ -49,9 +49,9 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 
 ### 2. Mean-Field Variational Inference (MFVI)
 
-**Mean-Field Variational Inference (MFVI)** (a.k.a. “Bayes by Backprop”) is a classic approach where we assume a factorized Gaussian over neural network weights and optimize its mean/variance parameters via the ELBO. While it can be applied to all layers, it is also possible to do post-hoc MFVI on only the final layers. This method can correct overconfidence, but often underestimates uncertainty due to the independence assumption.
+**Mean-Field Variational Inference (MFVI)** is a classic approach where we assume a factorized Gaussian over neural network weights and optimize its mean/variance parameters via the ELBO. This method can correct overconfidence, but often underestimates uncertainty due to the independence assumption.
 
-- *Source:* Blundell et al. (2015) – *“Weight Uncertainty in Neural Networks.”* [[ICML](http://proceedings.mlr.press/v37/blundell15.html)]
+- *Source:* Deng et al. (2021) – *“BayesAdapter: Being Bayesian, Inexpensively and Robustly, via Bayesian Fine-tuning”* [[ACML](https://proceedings.mlr.press/v189/deng23b/deng23b.pdf)]
 
 ---
 
@@ -191,10 +191,10 @@ By contributing, you help advance accessible Bayesian deep learning methods for 
    NeurIPS 35, [Link](https://proceedings.neurips.cc/paper_files/paper/2022/hash/5d826cc6b2b713e3b9aad0b67c3b0f79-Abstract-Conference.html)
 
 4. **Ortega et al. (2024a)** – *“Variational Linearized Laplace Approximation for Bayesian Deep Learning.”*  
-   ICML 41, [Link](https://proceedings.mlr.press/v235/ortega24a.html)
+   ICML 41, [Link](https://proceedings.mlr.press/v189/deng23b/deng23b.pdf)
 
-5. **Blundell et al. (2015)** – *“Weight Uncertainty in Neural Networks.”*  
-   ICML 32, [Link](http://proceedings.mlr.press/v37/blundell15.html)
+5. **Deng et al. (2021)** – *“BayesAdapter: Being Bayesian, Inexpensively and Robustly, via Bayesian Fine-tuning.”*  
+   ACML, [Link](http://proceedings.mlr.press/v37/blundell15.html)
 
 6. **Liu et al. (2020)** – *“Simple and Principled Uncertainty Estimation with Deterministic Deep Learning via Distance Awareness.”*  
    NeurIPS 33, [Link](https://proceedings.neurips.cc/paper/2020/hash/4089e94f74c885f1bfb1e77f2711b67b-Abstract.html)
