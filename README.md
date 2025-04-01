@@ -47,7 +47,7 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 
 **Variational Last-Layer Laplace Approximation (VaLLA)** is another variant of LLA that leverages sparse Gaussian processes in function space. Rather than computing Hessians directly, VaLLA uses variational inference to fit a GP whose mean is anchored at the DNN output. In practice, VaLLA can yield high-quality calibration with sub-linear complexity in the dataset size.
 
-- *Source:* Ortega et al. (2024a) – “Variational Linearized Laplace Approximation for Bayesian Deep Learning.”
+- *Source:* Ortega et al. (2024a) – *“Variational Linearized Laplace Approximation for Bayesian Deep Learning.”* [[ICML](https://proceedings.mlr.press/v235/ortega24a.html)]
 
 ---
 
