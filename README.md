@@ -134,13 +134,13 @@ fmgp = FMGP(
 )
 
 # Train the FMGP to learn the GP variance parameters (the base model 'f' is not changed):
-loss_val = fmgp.fit(
+loss = fmgp.fit(
     iterations=3000,
     lr=1e-3,
     train_loader=train_loader,  # PyTorch DataLoader with (X, y)
     verbose=True
 )
-print("Finished FMGP training with final loss:", loss_val)
+print("Finished FMGP training with final loss:", loss)
 
 # Get predictions with uncertainty:
 X_test = ...  # some test inputs (NumPy array or torch.Tensor)
@@ -152,10 +152,10 @@ print("Predictive variance:", var_pred)
 For Linearized Laplace methods (including Full, Subnetwork, Last-layer, etc.), you would typically import from bayesipy.laplace. For instance:
 
 ```python
-from bayesipy.laplace import LaplaceWrapper
+from bayesipy.laplace import Laplace
 
 # Suppose 'f' is your pre-trained model.
-laplace_model = LaplaceWrapper(
+laplace_model = Laplace(
     model=f,
     approximation="full",    # 'full', 'kron', 'diag', 'kfac', etc.
     subset_of_weights="all", # 'all', 'last_layer', 'subnetwork', etc.
