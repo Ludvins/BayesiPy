@@ -395,7 +395,7 @@ class CIFAR10_OOD_Dataset:
         )
         test2 = datasets.SVHN(
             root=data_dir,
-            train=False,
+            split="test",
             download=True,
             transform=transform,
         )
@@ -409,8 +409,10 @@ class CIFAR10_OOD_Dataset:
         ood_test_targets = np.concatenate(
             [np.zeros(test_inputs.shape[0]), np.ones(test2_inputs.shape[0])]
         ).reshape(-1, 1)
-
-        self.test = TensorDataset(ood_test_data, ood_test_targets)
+        
+        self.test = TensorDataset(torch.tensor(ood_test_data),
+                                  torch.tensor(ood_test_targets)
+        )
 
     def get_splits(self):
         return self.train, self.test
