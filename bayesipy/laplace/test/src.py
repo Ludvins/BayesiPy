@@ -181,11 +181,16 @@ class TestLaplace:
 
         # Reset loss and Hessian buffer.
         self.loss = 0
-        self.H = torch.zeros(self.n_features, self.n_features, device=self.device, dtype=self.dtype)
+        self.H = torch.zeros(self.n_features, self.n_features, 
+                             device=self.device,
+                             dtype=self.dtype)
 
         # Optimizer for the secondary model.
-        optimizer = torch.optim.Adam(self.model2.parameters(), lr=1e-4 if lr is None else lr)
-
+        optimizer = torch.optim.Adam(self.model2.parameters(), 
+                                     lr=1e-4 if lr is None else lr)
+        # optimizer = torch.optim.SGD(self.model2.parameters(),
+        #                             lr=1e-4 if lr is None else lr,
+        #                             momentum=0.9)
         # Create iterators for the training loader and optional context loader.
         train_iter = iter(train_loader)
         if context_points_loader is not None:
@@ -292,9 +297,9 @@ class TestLaplace:
         if optimize_hyper_parameters:
             log_sigma = torch.zeros(1, requires_grad=True, device=self.device)
             log_prior = torch.zeros(1, requires_grad=True, device=self.device)
-            hyper_optimizer = torch.optim.Adam([log_prior, log_sigma], lr=1e-2)
+            hyper_optimizer = torch.optim.Adam([log_prior, log_sigma], lr=1e-3)
 
-            hyper_iter = tqdm(range(1000), desc="Optimizing Hyper-parameters", disable=not verbose)
+            hyper_iter = tqdm(range(10000), desc="Optimizing Hyper-parameters", disable=not verbose)
             for _ in hyper_iter:
                 hyper_optimizer.zero_grad()
                 neg_marglik = -self.log_marginal_likelihood(
@@ -345,7 +350,7 @@ class TestLaplace:
             out = functional_call(self.model, dual_params, X)
             _, jvp = fwAD.unpack_dual(out)
 
-        return jvp
+        return jvp.detach()
 
     def log_marginal_likelihood(
         self,
