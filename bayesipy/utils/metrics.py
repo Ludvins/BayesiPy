@@ -292,7 +292,7 @@ class SoftmaxClassification(Metrics):
             dtype=self.dtype,
         )
         # Use re-parameterization Trick
-        logit_samples = Fmean + torch.einsum("sna, nab -> snb", z, chol) * 0
+        logit_samples = Fmean + torch.einsum("sna, nab -> snb", z, chol)
         # Get probailities
         prob_samples = logit_samples.softmax(-1)
         # Average and compute logarithm to scale to logit again

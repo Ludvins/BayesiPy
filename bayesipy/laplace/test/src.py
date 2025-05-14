@@ -63,7 +63,6 @@ class TestLaplace:
         # This model is trained (via kernel norm minimization) to match the approximate
         # Hessian structure of self.model. We keep it in train mode for that purpose.
         self.model2 = model2
-        self.model2.train()
 
         # -- Extract parameters from primary model --
         # Create a vector of parameters and store it. This will serve as theta_MAP for
@@ -167,6 +166,7 @@ class TestLaplace:
         batch_size = X.shape[0]
         total_size = len(train_loader.dataset)
         self.num_train = total_size
+        
 
         # Attempt a forward pass for shape initialization.
         try:
@@ -238,7 +238,7 @@ class TestLaplace:
 
             # K ~ J*J^T in batched form => shape: (batch_size, batch_size, output_dim, output_dim)
             K = torch.einsum("ia,jb->ijab", J, J)
-            # Q ~ phi*phi^T in batched form => shape: (batch_size, batch_size, feature_dim, feature_dim)
+            # Q ~ phi*phi^T in batched form => shape: (batch_size, batch_size, output_dim, output_dim)
             Q = torch.einsum("ika,jkb->ijab", phi, phi)
 
             # Construct scaling matrix for the loss to approximate matching
@@ -250,7 +250,7 @@ class TestLaplace:
             scale_loss_matrix = (scale_loss_matrix1 + scale_loss_matrix2).to(self.device).to(self.dtype)
             # Expand to align with the extra dimensions in K and Q.
             scale_loss_matrix = scale_loss_matrix.unsqueeze(-1).unsqueeze(-1)
-
+            
             # Core loss: kernel norm difference between primary model GGN proxy and model2 features.
             loss = torch.norm(scale_loss_matrix * (K - Q))
 
@@ -266,6 +266,7 @@ class TestLaplace:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            
 
             losses.append(loss.item())
 
@@ -341,7 +342,7 @@ class TestLaplace:
         dual_params = {}
         params = {name: p for name, p in self.model.named_parameters()}
         # Generate random tangents for each parameter.
-        tangents = {name: torch.randn_like(p) for name, p in params.items()}
+        tangents = {name: torch.sign(torch.rand_like(p)-0.5) for name, p in params.items()}
 
         # Use forward-mode AD to generate the JVP.
         with fwAD.dual_level():
