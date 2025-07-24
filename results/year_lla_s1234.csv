@@ -1,0 +1,2 @@
+model,dataset,test_rmse,test_nll,test_crps,test_cqm,test_auc,seed,dtype,device,prior_opt_lr,prior_opt_iters,optimize_hyper_parameters
+Laplace,year,9.316823044138483,3.6507650536979397,4.954364970581388,0.07030021305442573,0.17179956955450645,1234,float64,cuda,0.1,1000,True

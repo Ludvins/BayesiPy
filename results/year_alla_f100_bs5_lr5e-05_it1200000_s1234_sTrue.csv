@@ -1,0 +1,2 @@
+model,dataset,test_rmse,test_nll,test_crps,test_cqm,test_auc,train_time_s,eval_time_s,seed,dtype,batch_size,device,features,lr,laplace_iters,prior_opt_lr,prior_opt_iters,optimize_hyper_parameters,sqrt
+ALaplace,year,9.316815472681888,3.6507517431725742,4.954407866066241,0.07032151849699787,0.6661097157702479,4943.95,41.01,1234,float32,5,cuda,100,5e-05,1200000,0.1,1000,True,True
