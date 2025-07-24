@@ -186,8 +186,19 @@ lla = TestLaplace(model=copy.deepcopy(backbone).to(DTYPE).to(DEVICE),
                   model2=conv_head.to(DEVICE),
                   likelihood="classification")
 
-svhn = datasets.SVHN(root="data", split="train", download=True, transform=transform)
-context_loader = DataLoader(svhn, batch_size=ARGS.batch_size, shuffle=True)
+svhn = datasets.SVHN(root="/scratch/ludvins/", split="train", download=True, transform=transform)
+from torchvision import datasets, transforms
+resize32 = transforms.Compose([
+    transforms.Resize(32),
+    transforms.CenterCrop(32),
+    transforms.ToTensor(),
+])
+
+lsun_val = datasets.STL10(root='/scratch/ludvins/', split='train', download=True,
+                         transform=resize32)
+
+
+context_loader = DataLoader(lsun_val, batch_size=ARGS.batch_size, shuffle=True)
 
 # -----------------------------  TRAIN  (timed)  ------------------------------#
 train_start = time.perf_counter()                    
@@ -228,7 +239,7 @@ metrics_lla_test = metrics_lla_test.get_dict()
 
 eval_time = time.perf_counter() - eval_start        
 
-ood_ds = CIFAR10_OOD_Dataset(transform=transform)
+ood_ds = CIFAR10_OOD_Dataset("/scratch/ludvins/", transform=transform)
 _, ood_test = ood_ds.get_splits()
 ood_loader = DataLoader(ood_test, batch_size=ARGS.batch_size, shuffle=True)
 

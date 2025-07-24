@@ -113,6 +113,8 @@ class TestLaplace:
         weight_decay: float = None,
         lr: float = None,
         optimize_hyper_parameters: bool = True,
+        prior_opt_lr: float = 1e-3,
+        prior_opt_iterations: int = 100,
         verbose: bool = False,
     ):
         """
@@ -149,6 +151,11 @@ class TestLaplace:
         optimize_hyper_parameters : bool, optional
             Whether to optimize the prior precision (and sigma_noise if regression)
             after building the Hessian. Default is True.
+        prior_opt_lr : float, optional
+            Learning rate for the hyperparameter optimizer (Adam) during
+            marginal likelihood optimization. Default is 1e-3.
+        prior_opt_iterations : int, optional
+            Number of iterations for hyperparameter optimization. Default is 100.
         verbose : bool, optional
             If True, display progress bars and losses. Default is False.
 
@@ -163,10 +170,10 @@ class TestLaplace:
         # Prepare for kernel norm minimization by ensuring shapes/dimensions are known.
         data = next(iter(train_loader))
         X = data[0]
-        batch_size = X.shape[0]
         total_size = len(train_loader.dataset)
         self.num_train = total_size
         
+        self.model2.eval()
 
         # Attempt a forward pass for shape initialization.
         try:
@@ -176,6 +183,8 @@ class TestLaplace:
             # For some models that may not allow slicing with [:1].
             out = self.model(X.to(self.device).to(self.dtype))
             self.n_features = self.model2(X.to(self.device).to(self.dtype)).shape[-2]
+            
+        self.model2.train()
 
         self.n_outputs = out.shape[-1]
 
@@ -188,15 +197,13 @@ class TestLaplace:
         # Optimizer for the secondary model.
         optimizer = torch.optim.Adam(self.model2.parameters(), 
                                      lr=1e-4 if lr is None else lr)
-        # optimizer = torch.optim.SGD(self.model2.parameters(),
-        #                             lr=1e-4 if lr is None else lr,
-        #                             momentum=0.9)
         # Create iterators for the training loader and optional context loader.
         train_iter = iter(train_loader)
         if context_points_loader is not None:
             context_points_iter = iter(context_points_loader)
 
         losses = []
+        losses_exact = []   
 
         # Make sure the primary model's parameters require grad during JVP calculations.
         for p in self.model.parameters():
@@ -228,7 +235,6 @@ class TestLaplace:
 
                 x = torch.cat([x, x_context], dim=0)
                 y = torch.cat([y, y_context], dim=0)
-                batch_size = x.shape[0]
 
             # Compute a random JVP for the primary model (approx. GGN row).
             J = self._true_jacobian(x, y)
@@ -241,18 +247,20 @@ class TestLaplace:
             # Q ~ phi*phi^T in batched form => shape: (batch_size, batch_size, output_dim, output_dim)
             Q = torch.einsum("ika,jkb->ijab", phi, phi)
 
-            # Construct scaling matrix for the loss to approximate matching
-            # of the two kernel representations (K and Q) across the batch.
-            scale_loss_matrix1 = torch.eye(batch_size) * (batch_size / total_size)
-            scale_loss_matrix2 = (torch.ones_like(scale_loss_matrix1) - torch.eye(batch_size)) * (
-                batch_size * (batch_size - 1) / (total_size * (total_size - 1))
-            )
-            scale_loss_matrix = (scale_loss_matrix1 + scale_loss_matrix2).to(self.device).to(self.dtype)
-            # Expand to align with the extra dimensions in K and Q.
-            scale_loss_matrix = scale_loss_matrix.unsqueeze(-1).unsqueeze(-1)
+            # in-place scaling of the selected diagonal blocks
+            B = x.shape[0] // 2
+            if context_points_loader is not None:
+                K[:B, B:] *= 0.0    # broadcasts over the two trailing dims
+                K[B:, :B] *= 0.0    # broadcasts over the two trailing dims
+
+            # with torch.no_grad():
+            #     J_exact = self._true_jacobian2(x)
+            #     K_exact = torch.einsum("ika,jkb->ijab", J_exact, J_exact)
             
             # Core loss: kernel norm difference between primary model GGN proxy and model2 features.
-            loss = torch.norm(scale_loss_matrix * (K - Q))
+            loss = torch.mean((K - Q)**2)
+            
+            #loss_exact = torch.mean((K_exact - Q)**2) 
 
             # Optional weight decay on model2 parameters.
             if weight_decay is not None:
@@ -261,7 +269,7 @@ class TestLaplace:
                 )
 
             if verbose:
-                tq.set_postfix({"Loss": loss.item()})
+                tq.set_postfix({"Loss": loss.item()})  
 
             optimizer.zero_grad()
             loss.backward()
@@ -269,6 +277,7 @@ class TestLaplace:
             
 
             losses.append(loss.item())
+            #losses_exact.append(loss_exact.item())
 
         # -- Step 2: Build approximate Hessian (GGN) using the final model2 --
         with torch.no_grad():
@@ -292,15 +301,15 @@ class TestLaplace:
 
                 self.loss += loss_batch.detach()
                 self.H += H_batch.detach()
-
+                
         # -- Step 3: Hyperparameter optimization (optional) --
         losses2 = []
         if optimize_hyper_parameters:
             log_sigma = torch.zeros(1, requires_grad=True, device=self.device)
             log_prior = torch.zeros(1, requires_grad=True, device=self.device)
-            hyper_optimizer = torch.optim.Adam([log_prior, log_sigma], lr=1e-3)
+            hyper_optimizer = torch.optim.Adam([log_prior, log_sigma], lr=prior_opt_lr)
 
-            hyper_iter = tqdm(range(10000), desc="Optimizing Hyper-parameters", disable=not verbose)
+            hyper_iter = tqdm(range(prior_opt_iterations), desc="Optimizing Hyper-parameters", disable=not verbose)
             for _ in hyper_iter:
                 hyper_optimizer.zero_grad()
                 neg_marglik = -self.log_marginal_likelihood(
@@ -314,8 +323,10 @@ class TestLaplace:
             # Update the internal hyperparameters after optimization.
             self.prior_precision = log_prior.exp().item()
             self.sigma_noise = log_sigma.exp().item()
+            
+        self.model2.eval()
 
-        return losses, losses2
+        return losses, losses_exact
 
     def _true_jacobian(self, X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
         """
@@ -352,6 +363,23 @@ class TestLaplace:
             _, jvp = fwAD.unpack_dual(out)
 
         return jvp.detach()
+    
+    @torch.no_grad()
+    def _true_jacobian2(self, x):
+
+        params_dict = { k: v for k, v in self.model.named_parameters() if v.requires_grad }
+        buffers_dict =  { k: v for k, v in self.model.named_buffers() }
+
+        def model_fn_params_only(params_dict, buffers_dict):
+            out = torch.func.functional_call(self.model, (params_dict, buffers_dict), x)
+            return out, out
+
+        Js, f = torch.func.jacrev(model_fn_params_only, has_aux=True)(params_dict, buffers_dict)
+        Js = [ j.flatten(start_dim=-p.dim()) for j, p in zip(Js.values(), params_dict.values()) ]
+        Js = torch.cat(Js, dim=-1)
+
+        return Js.detach().permute(0, 2, 1)
+
 
     def log_marginal_likelihood(
         self,
@@ -616,6 +644,7 @@ class TestLaplace:
                 Denormalized predictive variance. For regression, includes the
                 noise variance σ_noise^2 added to the model’s predictive variance.
         """
+        self.model2.eval()
         F_mean, F_var = self.forward(x)
         if self.likelihood == "regression":
             # For scalar output, the shape might be simpler. Adjust if you have multi-dimensional outputs.
