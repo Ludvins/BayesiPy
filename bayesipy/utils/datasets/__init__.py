@@ -1,5 +1,6 @@
 from .datasets import (
     Airline_Dataset,
+    SortedAirline_Dataset,
     CIFAR10_Dataset,
     CIFAR10_Rotated_Dataset,
     CIFAR10_OOD_Dataset,

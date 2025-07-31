@@ -425,7 +425,8 @@ class TestLaplace:
         Uses `_precision_to_scale_tril` from PyTorch to invert the posterior
         precision matrix and produce a lower-triangular factor.
         """
-        self._posterior_scale = _precision_to_scale_tril(self.posterior_precision).to(self.dtype)
+        eye = torch.eye(self.n_features, device=self.device, dtype=self.dtype)
+        self._posterior_scale = _precision_to_scale_tril(self.posterior_precision + 1e-6 * eye).to(self.dtype)
 
     @property
     def scatter(self) -> torch.Tensor:

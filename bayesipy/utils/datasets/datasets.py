@@ -679,6 +679,86 @@ class Airline_Dataset:
     def validation_split(self):
         return self.val
 
+class SortedAirline_Dataset:
+    def __init__(self):
+        self.output_dim = 1
+
+        data1 = pd.read_csv(data_base + "airline_1.csv")
+        data2 = pd.read_csv(data_base + "airline_2.csv")
+        data = pd.concat([data1, data2])
+
+        # Convert time of day from hhmm to minutes since midnight
+        data.ArrTime = 60 * np.floor(data.ArrTime / 100) + np.mod(data.ArrTime, 100)
+        data.DepTime = 60 * np.floor(data.DepTime / 100) + np.mod(data.DepTime, 100)
+
+        # Pick out the data
+        total_size = 800000
+        Y = data["ArrDelay"].values[:total_size].reshape(-1, 1)
+        names = [
+            "Month",
+            "DayofMonth",
+            "DayOfWeek",
+            "plane_age",
+            "AirTime",
+            "Distance",
+            "ArrTime",
+            "DepTime",
+        ]
+        X = data[names].values[:total_size]
+        X = X.astype(np.float64)
+        Y = Y.astype(np.float64)
+        
+
+        # Sort X (and correspondingly Y) by all features (lexicographic order)
+        sort_indices = np.lexsort([X[:, i] for i in reversed(range(X.shape[1]))])
+        X = X[sort_indices] 
+        Y = Y[sort_indices]
+
+        # Define third splits
+        third = total_size // 3
+        idx_train_1 = slice(0, third)
+        idx_test = slice(third, 2 * third)
+        idx_train_2 = slice(2 * third, total_size)
+
+        # Concatenate the first and last thirds for training
+        X_train = np.concatenate([X[idx_train_1], X[idx_train_2]], axis=0)
+        Y_train = np.concatenate([Y[idx_train_1], Y[idx_train_2]], axis=0)
+        X_test = X[idx_test]
+        Y_test = Y[idx_test]
+
+        self.n_train = X_train.shape[0]
+        self.n_val = self.n_train // 6  # for example: ~100k if train is 700k
+
+        self.X_mean = np.mean(X_train, axis=0, keepdims=True)
+        self.X_std = np.std(X_train, axis=0, keepdims=True)
+
+        self.y_mean = np.mean(Y_train, axis=0, keepdims=True)
+        self.y_std = np.std(Y_train, axis=0, keepdims=True)
+
+        X_train = (X_train - self.X_mean) / self.X_std
+        X_test = (X_test - self.X_mean) / self.X_std
+        Y_train = (Y_train - self.y_mean) / self.y_std
+
+        # Split train into train/val
+        self.train = Training_Dataset(
+            X_train[:-self.n_val], Y_train[:-self.n_val], self.output_dim
+        )
+        self.val = Test_Dataset(
+            X_train[-self.n_val:], self.output_dim, Y_train[-self.n_val:]
+        )
+        self.test = Test_Dataset(X_test, self.output_dim, Y_test)
+
+        self.input_dim = X.shape[1]
+
+    def train_size(self):
+        return self.n_train - self.n_val
+
+    def train_test_splits(self):
+        return self.train, self.test
+
+    def validation_split(self):
+        return self.val
+
 
 class Year_Dataset:
     def __init__(self, data_dir="./data/"):
