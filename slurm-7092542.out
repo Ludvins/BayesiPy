@@ -1,0 +1,21 @@
+==========================================
+SLURM_JOB_ID = 7092542
+SLURM_NODELIST = hamilton01
+SLURM_JOB_PARTITION = gpu
+SLURM_JOB_USER = ludvins
+SLURM_JOB_ACCOUNT = ada2_serv
+SLURM_NPROCS = 
+==========================================
+export BASH_ENV=/etc/profile.d/modules.sh
+mkdir: no se puede crear el directorio «/temporal/ludvins/7092542»: El fichero ya existe
+/scratch/ludvins/.venv/lib64/python3.11/site-packages/torch/_tensor.py:868: UserWarning: non-inplace resize is deprecated
+  warnings.warn("non-inplace resize is deprecated")
+Number of samples:  444445
+Input dimension:  (8,)
+Label dimension:  1
+Loading pre-trained backbone from results/airline_backbone.pth
+Test RMSE of the backbone model: 40.4485
+Prior precision: 272.4888916015625
+Noise sigma: 0.9464835524559021
+Test metrics: {'RMSE': 37.49770874329197, 'NLL': 5.0586788754796785, 'Q-10': 0.1482078705196763, 'Q-20': 0.30481201203003006, 'Q-30': 0.46509866274665684, 'Q-40': 0.6126915317288293, 'Q-50': 0.7321405803514509, 'Q-60': 0.8170482926207315, 'Q-70': 0.8705909264773162, 'Q-80': 0.9034410086025215, 'Q-90': 0.9291998229995575, 'CQM': 0.12832307080767702, 'CRPS': 17.161850004645753}
+AUC for OOD detection: 0.4520
