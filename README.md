@@ -10,8 +10,8 @@ BayesiPy provides a suite of state-of-the-art techniques to quantify uncertainty
   - **Subnetwork Laplace**  
   - **Last-Layer Laplace** 
   - Various curvature approximations (Exact, Kron, Diagonal, KFAC, etc.)
-- **accElerated Laplace Approximation (ELLA)**
-- **Variational Last-Layer Laplace Approximation (VaLLA)**
+- **accElerated Linearized Laplace Approximation (ELLA)**
+- **Variational Linearized Laplace Approximation (VaLLA)**
 - **Mean-Field Variational Inference (MFVI)**
 - **Spectral-normalized Gaussian Process (SNGP)**
 - **Fixed-Mean Gaussian Process (FM-GP)**
