@@ -390,6 +390,10 @@ class VaLLA(torch.nn.Module):
             training_targets.append(targets)
         training_data = torch.cat(training_data, axis=0)
         training_targets = torch.cat(training_targets, axis=0)
+                
+        # If needed convert one-hot into numerical
+        if self.likelihood == "classification" and training_targets.shape[1] > 1:
+            training_targets = training_targets.argmax(dim=1)
 
         if self.likelihood == "regression":
             self.inducing_locations = kmeans2(

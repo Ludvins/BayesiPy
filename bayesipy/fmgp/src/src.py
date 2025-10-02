@@ -122,8 +122,12 @@ class FMGP_Base(torch.nn.Module):
                 self.inducing_classes = torch.tensor(
                     inducing_classes, device=self.device, dtype=torch.long
                 )
+        
+        self.seed = 2147483647 - seed
 
-        if subrogate_regularizer:
+    def _initialize_parameters(self):
+
+        if self.subrogate_regularizer:
             self.q_mu = torch.zeros(
                 (self.num_inducing, 1), device=self.device, dtype=self.dtype
             )
@@ -144,7 +148,6 @@ class FMGP_Base(torch.nn.Module):
         )
 
         self.L = torch.nn.Parameter(self.L)
-        self.seed = 2147483647 - seed
         self.generator = torch.Generator(device=self.device)
         self.generator.manual_seed(self.seed)
 
@@ -427,6 +430,10 @@ class FMGP_Base(torch.nn.Module):
             logpdf = logpdf + torch.log(C)
             logpdf = logpdf / alpha
         else:
+            
+            # Handle one-hot encoding
+            if y.ndim == 2 and y.shape[1] > 1:
+                y = torch.argmax(y, dim=1, keepdim=True)
             # Compute scaled logits
             F = F_mean / torch.sqrt(
                 1 + torch.pi / 8 * torch.diagonal(F_var, dim1=1, dim2=2)
@@ -584,6 +591,9 @@ class FMGP_Base(torch.nn.Module):
                 length_scale = compute_length_scale_estimation(train_loader)
                 self._create_kernel(length_scale)
                 print("done")
+
+        self.num_inducing = len(self.inducing_classes)
+        self._initialize_parameters()
 
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         if scheduler_gamma is not None:
@@ -785,6 +795,12 @@ class FMGP_Embedding(FMGP_Base):
             training_targets.append(targets)
         training_data = torch.cat(training_data, axis=0)
         training_targets = torch.cat(training_targets, axis=0)
+        
+
+        # If needed convert one-hot into numerical
+        if self.likelihood == "classification" and training_targets.shape[1] > 1:
+            training_targets = training_targets.argmax(dim=1)
+
 
         if self.likelihood == "regression":
             inducing_locations = kmeans2(
@@ -887,52 +903,3 @@ class FMGP_Embedding(FMGP_Base):
                 embedding = self.embedding(X)
 
         return super()._subrogate_sgp_forward((X, embedding))
-
-        # with record_function("Input Kernels"):
-        # Shape (batch_size, output_dim, output_dim)
-        Kx_diag = self.kernel((X, embedding), diag=True)
-        # Shape (batch_size, num_inducing, output_dim, output_dim)
-        Kxz = self.kernel((X, embedding), self.inducing_locations)
-        # Shape (num_inducing, num_inducing, output_dim, output_dim)
-        Kzz = self.kernel(self.inducing_locations)
-
-        indices_expanded = self.inducing_classes.view(1, self.num_inducing, 1, 1)
-        indices_expanded2 = indices_expanded.repeat(X.shape[0], 1, self.output_dim, 1)
-
-        Kxz = torch.gather(Kxz, -1, indices_expanded2).squeeze(-1)
-
-        indices_expanded = self.inducing_classes.view(self.num_inducing, 1, 1, 1)
-        indices_expanded = indices_expanded.repeat(
-            1, self.num_inducing, self.output_dim, 1
-        )
-
-        Kzz = torch.gather(Kzz, -1, indices_expanded).squeeze(-1)
-
-        indices_expanded2 = self.inducing_classes.view(1, self.num_inducing, 1)
-        indices_expanded2 = indices_expanded2.repeat(self.num_inducing, 1, 1)
-
-        Kzz = torch.gather(Kzz, -1, indices_expanded2).squeeze(-1)
-
-        # with record_function("Inducing terms"):
-        self.Kz = Kzz
-        self.compute_inducing_term(Kzz)
-
-        # Compute predictive diagonal
-        # Shape [output_dim, output_dim, batch_size, batch_size]
-        # K2 = Kxz @ A @ Kxz^T
-        diag = torch.einsum("nma, ml, nlb -> nab", Kxz, self.A, Kxz)
-        # Shape [batch_size, output_dim, output_dim]
-
-        Fvar = Kx_diag - diag
-
-        if self.subrogate_regularizer:
-            self.Kz_inv = safe_inverse(self.Kz)
-
-            # Shape (num_inducing, output_dim)
-            aux = self.Kz_inv @ self.q_mu
-
-            Q_mean = torch.einsum("nma, m -> na", Kxz, aux.squeeze(-1))
-        else:
-            Q_mean = torch.zeros((X.shape[0], self.output_dim), device=self.device)
-
-        return Q_mean, Fvar

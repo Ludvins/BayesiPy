@@ -408,6 +408,7 @@ class SNGP(nn.Module):
             Predicted output logits.
         """
         with torch.no_grad():
+            x = x.to(self.device).to(self.dtype)
             latent_feature = self.model(x)
             gp_feature, gp_output = self.gp_layer(latent_feature)
             gp_cov_matrix = self.compute_predictive_covariance(gp_feature)
