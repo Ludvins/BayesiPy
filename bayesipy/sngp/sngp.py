@@ -7,6 +7,7 @@ from torch import Tensor
 from torch.nn.utils.parametrizations import spectral_norm
 from tqdm import tqdm
 from torch.nn import init
+from bayesipy.utils import gaussian_logdensity
 
 def RandomFeatureLinear(i_dim: int, o_dim: int, bias: bool = True, require_grad: bool = False, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None) -> nn.Linear:
     """
@@ -79,7 +80,21 @@ class SNGP(nn.Module):
         Random seed for reproducibility. Default is None.
     """
     
-    def __init__(self, model: nn.Module, gp_kernel_scale: float = 1.0, n_random_features: int = 1024, gp_output_bias: float = 0.0, layer_norm_eps: float = 1e-12, n_power_iterations: int = 1, scale_random_features: bool = True, normalize_input: bool = True, gp_cov_momentum: float = 0.999, gp_cov_ridge_penalty: float = 1e-3, seed: Optional[int] = None):
+    def __init__(self, model: nn.Module, 
+                 likelihood = "classification", 
+                 gp_kernel_scale: float = 1.0, 
+                 n_random_features: int = 1024, 
+                 gp_output_bias: float = 0.0, 
+                 layer_norm_eps: float = 1e-12, 
+                 n_power_iterations: int = 1, 
+                 scale_random_features: bool = True, 
+                 normalize_input: bool = True, 
+                 gp_cov_momentum: float = 0.999, 
+                 gp_cov_ridge_penalty: float = 1e-3, 
+                 noise_variance: float = None,
+                 y_mean: float = 0.0,
+                 y_std: float = 1.0,
+                 seed: Optional[int] = None):
         super(SNGP, self).__init__()
         
         # Set random seed if provided
@@ -94,6 +109,7 @@ class SNGP(nn.Module):
         
         # Initialize model and hyperparameters
         self.model = model
+        self.likelihood = likelihood
         self.n_random_features = n_random_features
         self.layer_norm_eps = layer_norm_eps
         self.gp_cov_ridge_penalty = gp_cov_ridge_penalty
@@ -107,6 +123,14 @@ class SNGP(nn.Module):
         self.scale_random_features = scale_random_features
         self.normalize_input = normalize_input
         
+        self.y_mean = y_mean
+        self.y_std = y_std
+        if self.likelihood == "regression":
+            if noise_variance is None:
+                self.log_noise = torch.nn.Parameter(torch.tensor(0.0, device=self.device, dtype=self.dtype))
+            else:
+                self.log_noise = torch.nn.Parameter(0.5 * torch.tensor(noise_variance, device=self.device, dtype=self.dtype).log())
+
         # Apply spectral normalization
         self.spectral_norm()
         
@@ -205,12 +229,15 @@ class SNGP(nn.Module):
             targets = targets.to(self.device)
             
             # Forward pass
-            logit = self.forward(inputs)
+            output = self.forward(inputs)
 
             # Compute and record loss
-            loss = torch.nn.functional.cross_entropy(logit, targets)
+            if self.likelihood == "regression":
+                loss = -gaussian_logdensity(output,  self.log_noise.exp()**2, targets).mean()
+            else:
+                loss = torch.nn.functional.cross_entropy(output, targets)
+                
             losses.append(loss.item())
-            
             # Backward pass and optimization
             optimizer.zero_grad()
             loss.backward()
@@ -221,7 +248,7 @@ class SNGP(nn.Module):
 
         return losses
 
-    def gp_layer(self, gp_inputs: Tensor) -> (Tensor, Tensor):
+    def gp_layer(self, gp_inputs: Tensor):
         """
         Apply the GP layer transformation.
 
@@ -315,9 +342,9 @@ class SNGP(nn.Module):
         return gp_cov_matrix
 
     @torch.no_grad()
-    def mean_field_logits(self, logits: Tensor, covmat: Tensor) -> Tensor:
+    def mean_field_outputs(self, outputs: Tensor, covmat: Tensor) -> Tensor:
         """
-        Adjust the logits to approximate the posterior mean using mean-field approximation.
+        Adjust the outputs to approximate the posterior mean using mean-field approximation.
 
         Parameters
         ----------
@@ -333,16 +360,16 @@ class SNGP(nn.Module):
         """
         # Compute standard deviation from diagonal of covariance matrix
         variances = torch.diagonal(covmat)
-        logits_scale = torch.sqrt(1. + variances)
+        outputs_scale = torch.sqrt(1. + variances)
 
-        # Adjust logits scale to match dimensions
-        if len(logits.shape) > 1:
-            logits_scale = torch.unsqueeze(logits_scale, dim=-1)
+        # Adjust outputs scale to match dimensions
+        if len(outputs.shape) > 1:
+            outputs_scale = torch.unsqueeze(outputs_scale, dim=-1)
 
-        return logits / logits_scale
+        return outputs / outputs_scale
 
     @torch.no_grad()
-    def monte_carlo_softmax(self, logits: Tensor, var: Tensor, num_samples: int = 50, temp_scale: float = 1.0) -> Tensor:
+    def monte_carlo_outputs(self, outputs: Tensor, var: Tensor, num_samples: int = 50, temp_scale: float = 1.0) -> Tensor:
         """
         Estimate the softmax mean using Monte Carlo sampling.
 
@@ -364,11 +391,11 @@ class SNGP(nn.Module):
         """
         var = torch.diag(var)
         stddev = torch.sqrt(var * temp_scale)
-        shape = tuple(list(logits.shape) + [num_samples])
+        shape = tuple(list(outputs.shape) + [num_samples])
         
         # Sample from standard normal distribution
         rand_samples = torch.randn(shape).to(self.device).to(self.dtype)
-        means = torch.tile(logits.unsqueeze(-1), (1, 1, num_samples))
+        means = torch.tile(outputs.unsqueeze(-1), (1, 1, num_samples))
         stddevs = torch.tile(stddev.unsqueeze(-1).unsqueeze(-1), (1, means.shape[1], num_samples))
         
         # Compute sampled logits
@@ -393,6 +420,7 @@ class SNGP(nn.Module):
         _, gp_output = self.gp_layer(latent_feature)
         return gp_output
 
+    @torch.no_grad()
     def predict(self, x: Tensor) -> Tensor:
         """
         Predict output for the input data.
@@ -407,10 +435,15 @@ class SNGP(nn.Module):
         Tensor
             Predicted output logits.
         """
-        with torch.no_grad():
-            x = x.to(self.device).to(self.dtype)
-            latent_feature = self.model(x)
-            gp_feature, gp_output = self.gp_layer(latent_feature)
-            gp_cov_matrix = self.compute_predictive_covariance(gp_feature)
-            gp_output = self.monte_carlo_softmax(gp_output, gp_cov_matrix)
-        return gp_output
+        x = x.to(self.device).to(self.dtype)
+        latent_feature = self.model(x)
+        gp_feature, gp_output = self.gp_layer(latent_feature)
+        gp_cov_matrix = self.compute_predictive_covariance(gp_feature)
+        
+        gp_output = self.monte_carlo_outputs(gp_output, gp_cov_matrix)
+        if self.likelihood == "classification":
+            return gp_output * self.y_std + self.y_mean
+        else:
+            mean = gp_output.mean(dim=0)
+            var = gp_output.var(dim=0) + self.log_noise.exp()**2
+            return mean * self.y_std + self.y_mean, var * (self.y_std**2)
