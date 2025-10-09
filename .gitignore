@@ -2,3 +2,8 @@
 *.pyc
 .venv
 demos/data
+/data
+/benchmarks/data
+*.csv
+/examples/MNIST/results
+/examples/MNIST/mnist_resnet18

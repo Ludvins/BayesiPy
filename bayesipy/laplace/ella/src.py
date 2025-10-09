@@ -145,8 +145,6 @@ class ELLA(torch.nn.Module):
         # Bould the dual parameters list
         self._build_dual_params_list(sub_sample_loader)
         
-        #self._build_dual_params_list(self.params, xs, ys, num_classes=self.n_outputs, random=True, K=20, args=None, num_batches=100, verbose=True)
-
         # Initialize feature product matrix
         self.subset_feature_product = torch.zeros(self.K, self.K).to(
             device=self.device, dtype=self.dtype, non_blocking=True
