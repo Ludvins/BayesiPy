@@ -6,7 +6,7 @@ from scipy.cluster.vq import kmeans2
 from tqdm import tqdm
 
 from bayesipy.fmgp.kernels import LastLayerNTK_SquaredExponential, SquaredExponential
-from bayesipy.utils import gaussian_logdensity, safe_inverse
+from bayesipy.utils import gaussian_logdensity
 from bayesipy.utils.metrics import score
 
 from .utils import compute_length_scale_estimation
@@ -591,8 +591,10 @@ class FMGP_Base(torch.nn.Module):
                 length_scale = compute_length_scale_estimation(train_loader)
                 self._create_kernel(length_scale)
                 print("done")
+                print(f"Length scale estimated as {length_scale:.3f}.")
 
-        self.num_inducing = len(self.inducing_classes)
+
+        self.num_inducing = self.inducing_locations.shape[0]
         self._initialize_parameters()
 
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
@@ -798,17 +800,16 @@ class FMGP_Embedding(FMGP_Base):
         
 
         # If needed convert one-hot into numerical
-        if self.likelihood == "classification" and training_targets.shape[1] > 1:
+        if self.likelihood == "classification" and len(training_targets.shape) > 1 and training_targets.shape[1] > 1:
             training_targets = training_targets.argmax(dim=1)
-
 
         if self.likelihood == "regression":
             inducing_locations = kmeans2(
-                training_data, self.num_inducing, minit="points", seed=self.seed
+                training_data.detach().cpu().numpy(), self.num_inducing, minit="points", seed=self.seed
             )[0]
 
             inducing_locations = (
-                torch.tensor(self.inducing_locations).to(self.device).to(self.dtype)
+                torch.tensor(inducing_locations).to(self.device).to(self.dtype)
             )
             inducing_locations_embedding = self.embedding(inducing_locations)
             self.inducing_locations = torch.nn.ParameterList(
