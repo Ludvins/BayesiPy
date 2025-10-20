@@ -37,7 +37,7 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 **accElerated Linearized Laplace Approximation (ELLA)** specifically accelerates and approximates linearized Laplace approximation by using subsets of data, Nyström approximations and other low-rank techniques to handle larger models and datasets. Its emphasis on scalability and memory efficiency makes it appealing for modern architectures.
 
 - *Source:* Deng et al. (2022) proposed an accelerated linearized Laplace method (ELLA) with a Nyström approximation to the network’s tangent kernel for improved scalability.  
-  [[NeurIPS](https://proceedings.neurips.cc/paper_files/paper/2022/hash/5d826cc6b2b713e3b9aad0b67c3b0f79-Abstract-Conference.html)]
+  [[NeurIPS](https://proceedings.neurips.cc/paper_files/paper/2022/file/12143893d9d37c3569dda800b95cabd9-Paper-Conference.pdf)]
 
 **Variational Linearized Laplace Approximation (VaLLA)** is another variant of LLA that leverages sparse Gaussian processes in function space. Rather than computing Hessians directly, VaLLA uses variational inference to fit a GP whose mean is anchored at the DNN output. In practice, VaLLA can yield high-quality calibration with sub-linear complexity in the dataset size.
 
@@ -186,7 +186,7 @@ By contributing, you help advance accessible Bayesian deep learning methods for 
    ICML 37:5436–5446, [Link](http://proceedings.mlr.press/v119/kristiadi20a/kristiadi20a.pdf)
 
 3. **Deng et al. (2022)** – *“Accelerated Linearized Laplace Approximation for Bayesian Deep Learning.”*  
-   NeurIPS 35, [Link](https://proceedings.neurips.cc/paper_files/paper/2022/hash/5d826cc6b2b713e3b9aad0b67c3b0f79-Abstract-Conference.html)
+   NeurIPS 35, [Link](https://proceedings.neurips.cc/paper_files/paper/2022/file/12143893d9d37c3569dda800b95cabd9-Paper-Conference.pdf)
 
 4. **Ortega et al. (2024a)** – *“Variational Linearized Laplace Approximation for Bayesian Deep Learning.”*  
    ICML 41, [Link](https://proceedings.mlr.press/v189/deng23b/deng23b.pdf)
