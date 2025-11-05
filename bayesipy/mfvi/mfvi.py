@@ -63,7 +63,7 @@ class MFVI(torch.nn.Module):
             gaussian_log_likelihood = gaussian_logdensity(y_pred, noise**2, targets)
             return -gaussian_log_likelihood.mean()
 
-    def fit(self, train_loader, iterations, verbose=False):
+    def fit(self, train_loader, iterations, mean_lr = 1e-4, var_lr = 1e-3, mean_weight_decay = 2e-4, var_weight_decay = 0, momentum=0.9, verbose=False):
         self.train()
 
         self.num_data = len(train_loader.dataset)
@@ -78,10 +78,10 @@ class MFVI(torch.nn.Module):
         
         optimizer = torch.optim.SGD(
             [
-                {"params": mus, "lr": 1e-4, "weight_decay": 2e-4},
-                {"params": psis, "lr": 1e-3, "weight_decay": 0},
+                {"params": mus, "lr": mean_lr, "weight_decay": mean_weight_decay},
+                {"params": psis, "lr": var_lr, "weight_decay": var_weight_decay},
             ],
-            momentum=0.9,
+            momentum=momentum,
             nesterov=True,
         )
 
@@ -89,7 +89,7 @@ class MFVI(torch.nn.Module):
         # Define the Adam optimizer specifically for 'self.log_noise'
         if self.likelihood == "regression":
             optimizer_adam = torch.optim.Adam(
-                [{"params": self.log_noise, "lr": 1e-4, "weight_decay": 0}]
+                [{"params": self.log_noise, "lr": mean_lr}]
             )
 
         if verbose:

@@ -27,7 +27,6 @@ class SquaredExponential(torch.nn.Module):
         self.initial_length_scale = (
             torch.tensor(initial_length_scale).to(self.device).to(self.dtype)
         )
-
         self.log_input_length_scale = torch.log(
             torch.tensor(initial_length_scale, device=self.device, dtype=self.dtype)
         ) * torch.ones(n_features, device=self.device, dtype=self.dtype)
@@ -67,15 +66,14 @@ class SquaredExponential(torch.nn.Module):
         """
         if x2 is None:
             x2 = x1
-            
+
         if self.embedding is not None:
             x1 = self.embedding(x1)
             x2 = self.embedding(x2)
-
         # Scale the input features using the length scale
         x1 = x1 / torch.exp(self.log_input_length_scale)
         x2 = x2 / torch.exp(self.log_input_length_scale)
-
+        
         B1 = x1.shape[0]
         B2 = x2.shape[0]
 
@@ -98,6 +96,7 @@ class SquaredExponential(torch.nn.Module):
             return kernel.unsqueeze(-1).unsqueeze(-1) * outputs_kernel
 
         return kernel
+    
 
     def compute_output_kernel(self):
         if self.n_outputs == 1:
@@ -110,6 +109,106 @@ class SquaredExponential(torch.nn.Module):
 
         return L @ L.T
 
+class DotProduct(torch.nn.Module):
+    def __init__(
+        self,
+        initial_length_scale,
+        initial_amplitude,
+        n_features,
+        n_outputs,
+        device,
+        dtype,
+        embedding = None,
+    ):
+        super().__init__()
+        self.device = device
+        self.dtype = dtype
+        self.n_features = n_features
+        self.n_outputs = n_outputs
+        
+        self.embedding = embedding
+
+        self.initial_amplitude = (
+            torch.tensor(initial_amplitude).to(self.device).to(self.dtype)
+        )
+        self.initial_length_scale = (
+            torch.tensor(initial_length_scale).to(self.device).to(self.dtype)
+        )
+        self.log_input_length_scale = torch.log(
+            torch.tensor(initial_length_scale, device=self.device, dtype=self.dtype)
+        ) * torch.ones(n_features, device=self.device, dtype=self.dtype)
+        self.log_input_length_scale = torch.nn.Parameter(self.log_input_length_scale)
+
+        self.log_input_amplitude = torch.log(
+            torch.tensor(initial_amplitude, device=self.device, dtype=self.dtype)
+        )
+        self.log_input_amplitude = torch.nn.Parameter(self.log_input_amplitude)
+
+        if n_outputs != 1:
+            eye = np.exp(np.eye(self.n_outputs) - 1)
+
+            # Initialize cholesky decomposition of identity
+            li, lj = torch.tril_indices(self.n_outputs, self.n_outputs)
+            # Shape (n_outputs, n_outputs)
+            triangular_q_sqrt = eye[li, lj]
+            # Shape (n_outputs, n_outputs)
+            self.output_cholesky = torch.tensor(
+                triangular_q_sqrt,
+                dtype=self.dtype,
+                device=self.device,
+            )
+            self.output_cholesky = torch.nn.Parameter(self.output_cholesky)
+
+    def __call__(self, x1, x2=None, diag=False):
+        """Computes the dot-product kernel k(x, x') = σ^2 * x^T x'."""
+
+        if x2 is None:
+            x2 = x1
+
+        if self.embedding is not None:
+            x1 = self.embedding(x1)
+            x2 = self.embedding(x2)
+
+        # Scale inputs by length-scale(s)
+        ls = torch.exp(self.log_input_length_scale)
+        x1 = x1 / ls
+        x2 = x2 / ls
+
+        B1, B2 = x1.shape[0], x2.shape[0]
+        x1f = x1.reshape(B1, -1)
+        x2f = x2.reshape(B2, -1)
+
+        if diag:
+            # Diagonal of K(X1, X2): pairwise dot products of corresponding rows
+            if x1.equal(x2):
+                dot = torch.sum(x1f * x1f, dim=-1)
+            else:
+                # assumes B1 == B2; computes <x1[i], x2[i]>
+                dot = torch.sum(x1f * x2f, dim=-1)
+        else:
+            # Full Gram matrix: X1 X2^T
+            dot = x1f @ x2f.T
+
+        kernel = torch.exp(self.log_input_amplitude) * dot
+
+        if self.n_outputs != 1:
+            outputs_kernel = self.compute_output_kernel()
+            return kernel.unsqueeze(-1).unsqueeze(-1) * outputs_kernel
+
+        return kernel
+
+    
+
+    def compute_output_kernel(self):
+        if self.n_outputs == 1:
+            raise ValueError("Kernel with a single output dimension has no output fun")
+
+        L = torch.eye(self.n_outputs, dtype=self.dtype, device=self.device)
+        li, lj = torch.tril_indices(self.n_outputs, self.n_outputs)
+        # Shape (n_outputs, n_outputs)
+        L[li, lj] = self.output_cholesky
+
+        return L @ L.T
 
 class LastLayerNTK_SquaredExponential(SquaredExponential):
     def __init__(

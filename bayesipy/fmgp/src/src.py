@@ -5,12 +5,12 @@ import torch
 from scipy.cluster.vq import kmeans2
 from tqdm import tqdm
 
-from bayesipy.fmgp.kernels import LastLayerNTK_SquaredExponential, SquaredExponential
+from bayesipy.fmgp.kernels import LastLayerNTK_SquaredExponential, SquaredExponential, DotProduct
 from bayesipy.utils import gaussian_logdensity
 from bayesipy.utils.metrics import score
+from bayesipy.utils import safe_cholesky
 
 from .utils import compute_length_scale_estimation
-
 
 class FMGP_Base(torch.nn.Module):
     """Base class for the Uncertainty Estimation models.
@@ -47,6 +47,9 @@ class FMGP_Base(torch.nn.Module):
         inducing_locations=None,
         inducing_classes=None,
         num_inducing=None,
+        mc_softmax_samples: int = 0,
+        initial_bias: float = None,
+        initial_scale: float = None,
         y_mean: float = 0,
         y_std: float = 1,
         seed=0,
@@ -66,6 +69,24 @@ class FMGP_Base(torch.nn.Module):
         else:
             self.device = device
             self.dtype = dtype
+        
+        if initial_bias is not None:
+            print("[FMGP] Adding bias term to the model. Predictions will be shifted by a learnable constant. Softmax activation is invariant to this, but other activations are not.")
+            self.bias = torch.nn.Parameter(torch.ones(1, device=self.device, dtype=self.dtype) * initial_bias)
+        else:
+            self.bias = None
+        
+        if initial_scale is not None:
+            print("[FMGP] Adding scale term to the model. Predictions will be scaled by a learnable constant.")
+            self.scale = torch.nn.Parameter(torch.ones(1, device=self.device, dtype=self.dtype) * initial_scale )
+        else:
+            self.scale = None
+            
+        if mc_softmax_samples > 0:
+            print(f"[FMGP] Using MC Softmax with {mc_softmax_samples} samples to compute the probabilities.")
+        else:
+            print("[FMGP] Not using MC Softmax. Using Softmax approximation.")
+        self.mc_softmax_samples = mc_softmax_samples
 
         assert likelihood in ["regression", "classification"]
         self.likelihood = likelihood
@@ -182,20 +203,25 @@ class FMGP_Base(torch.nn.Module):
 
         return loss
 
-    @torch.no_grad()
     def handle_input(self, X):
-        if isinstance(X, list) and len(X) == 2:
-            X, outputs = X
-            X = X.to(self.device).to(self.dtype)
-            outputs = outputs.to(self.device).to(self.dtype)
-        elif self.model is not None:
-            X = X.to(self.device).to(self.dtype)
-            outputs = self.model(X)
-        else:
-            raise ValueError("No network or outputs provided")
+        with torch.no_grad():
+            if isinstance(X, list) and len(X) == 2:
+                X, outputs = X
+                X = X.to(self.device).to(self.dtype)
+                outputs = outputs.to(self.device).to(self.dtype)
+            elif self.model is not None:
+                X = X.to(self.device).to(self.dtype)
+                outputs = self.model(X)
+            else:
+                raise ValueError("No network or outputs provided")
 
+        if self.scale is not None:
+            outputs = outputs * self.scale
+        if self.bias is not None:
+            outputs = outputs + self.bias
+            
         return X, outputs
-
+        
     def set_input_shape(self, X):
         if isinstance(X, list):
             X = X[0]
@@ -240,7 +266,6 @@ class FMGP_Base(torch.nn.Module):
         F_var : torch Tensor of shape (batch_size, output_dim, output_dim)
             Contains the predictive variance of the model
         """
-
         # Shape (batch_size)
         Kx_diag = self.kernel(X, diag=True)
         batch_size = Kx_diag.shape[0]
@@ -248,7 +273,6 @@ class FMGP_Base(torch.nn.Module):
         Kxz = self.kernel(X, self.inducing_locations)
         # Shape (num_inducing, num_inducing)
         Kzz = self.kernel(self.inducing_locations)
-
         if self.likelihood == "regression":
             # For regression problems add output dimensions to Kx and Kxz
             Kx_diag = Kx_diag.unsqueeze(-1).unsqueeze(-1)
@@ -260,14 +284,12 @@ class FMGP_Base(torch.nn.Module):
             )
 
             Kxz = torch.gather(Kxz, -1, indices_expanded2).squeeze(-1)
-
             indices_expanded = self.inducing_classes.view(1, self.num_inducing, 1, 1)
             indices_expanded = indices_expanded.repeat(
                 self.num_inducing, 1, self.output_dim, 1
             )
 
             Kzz = torch.gather(Kzz, -1, indices_expanded).squeeze(-1)
-
             indices_expanded2 = self.inducing_classes.view(self.num_inducing, 1, 1)
             indices_expanded2 = indices_expanded2.repeat(1, self.num_inducing, 1)
 
@@ -290,6 +312,7 @@ class FMGP_Base(torch.nn.Module):
             )
             aux = self.Kz_inv @ self.q_mu
             Q_mean = torch.einsum("nma, m -> na", Kxz, aux.squeeze(-1))
+
         else:
             Q_mean = torch.zeros((batch_size, self.output_dim), device=self.device)
 
@@ -374,14 +397,10 @@ class FMGP_Base(torch.nn.Module):
         torch Tensor of shape ()
             Contains the loss of the model.
         """
-
         X, F_mean = self.handle_input(X)
-
         Q_mean, F_var = self._subrogate_sgp_forward(X)
-
         # Compute divergence term
         divergence = self.alpha_divergence(F_mean, F_var, y)
-
         # Scale loss term corresponding to minibatch size
         scale = self.num_data
         scale /= y.shape[0]
@@ -434,14 +453,33 @@ class FMGP_Base(torch.nn.Module):
             # Handle one-hot encoding
             if y.ndim == 2 and y.shape[1] > 1:
                 y = torch.argmax(y, dim=1, keepdim=True)
-            # Compute scaled logits
-            F = F_mean / torch.sqrt(
-                1 + torch.pi / 8 * torch.diagonal(F_var, dim1=1, dim2=2)
-            )
-            # Compute probabilities
-            probs = F.softmax(-1) ** alpha
+            
+            if self.mc_softmax_samples > 0:
+                # Monte Carlo approximation of the softmax integral
+                B = F_mean.shape[0]
+                samples = torch.randn(
+                    (B, self.output_dim, self.mc_softmax_samples),
+                    device=self.device,
+                    dtype=self.dtype,
+                    generator=self.generator,
+                )
+                L = safe_cholesky(F_var)
+                F_samples = F_mean.unsqueeze(-1) + torch.einsum("bik,bkj->bij", L, samples)
+                                
+                probs = F_samples.softmax(-2)  # Shape (B, output_dim, mc_softmax_samples)
+                
+                probs = probs.mean(-1) ** alpha  # Shape (B, output_dim)
+                
+                            
+            else:
+                # Compute scaled logits
+                F = F_mean / torch.sqrt(
+                    1 + torch.pi / 8 * torch.diagonal(F_var, dim1=1, dim2=2)
+                )
+                # Compute probabilities
+                probs = F.softmax(-1) ** alpha
 
-            # Compute divergence
+                # Compute divergence
             logpdf = (
                 -1
                 / alpha
@@ -449,6 +487,8 @@ class FMGP_Base(torch.nn.Module):
                     probs.log(), y.to(torch.long).squeeze(-1), reduction="none"
                 )
             )
+            
+            
 
         # # Aggregate on data dimension
         return torch.sum(logpdf)
@@ -534,11 +574,21 @@ class FMGP_Base(torch.nn.Module):
             self.inducing_classes = (
                 torch.concatenate(self.inducing_classes).to(self.device).to(torch.long)
             )
+            self.num_inducing = len(self.inducing_classes)
 
     def _create_kernel(self, length_scale):
         if self.kernel == "RBF":
             self.kernel = SquaredExponential(
-                initial_length_scale=np.log(length_scale),
+                initial_length_scale=length_scale,
+                initial_amplitude=1,
+                n_features=self.input_shape,
+                n_outputs=self.output_dim,
+                device=self.device,
+                dtype=self.dtype,
+            )
+        elif self.kernel == "DotProduct":
+            self.kernel = DotProduct(
+                initial_length_scale=length_scale,
                 initial_amplitude=1,
                 n_features=self.input_shape,
                 n_outputs=self.output_dim,
@@ -566,11 +616,9 @@ class FMGP_Base(torch.nn.Module):
         if override:
             data = next(iter(train_loader))
             X = data[0]
-            try:
-                model_output = self.handle_input(X[0])[1]
-            except (TypeError, AttributeError, ValueError):
-                model_output = self.handle_input(X[:1])[1]
 
+            model_output = self.handle_input(X[:1])[1]
+            
             self.set_input_shape(X)
 
             self.output_dim = model_output.shape[-1]
@@ -594,7 +642,6 @@ class FMGP_Base(torch.nn.Module):
                 print(f"Length scale estimated as {length_scale:.3f}.")
 
 
-        self.num_inducing = self.inducing_locations.shape[0]
         self._initialize_parameters()
 
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
@@ -636,7 +683,7 @@ class FMGP_Base(torch.nn.Module):
 
             losses.append(loss.detach().cpu().numpy())
             if val_loader is not None and (i == 0 or (i + 1) % val_steps == 0):
-                stored_metrics.append(score(self, val_loader, metrics_cls))
+                stored_metrics.append(score(self, val_loader, metrics_cls))                
                 print(stored_metrics[-1])
             if verbose:
                 iters.set_postfix(
@@ -650,34 +697,6 @@ class FMGP_Base(torch.nn.Module):
         if val_loader is not None:
             return losses, stored_metrics
         return losses
-
-    def print_variables(self):
-        """Prints the model variables in a prettier format."""
-
-        print("\n---- MODEL PARAMETERS ----")
-        np.set_printoptions(threshold=3, edgeitems=2)
-        sections = []
-        pad = "  "
-        for name, param in self.named_parameters():
-            if not param.requires_grad or "net" in name:
-                continue
-            name = name.split(".")
-            for i in range(len(name) - 1):
-                if name[i] not in sections:
-                    print(pad * i, name[i].upper())
-                    sections = name[: i + 1]
-
-            padding = pad * (len(name) - 1)
-            print(
-                padding,
-                "{}: ({})".format(name[-1], str(list(param.data.size()))[1:-1]),
-            )
-            print(
-                padding + " " * (len(name[-1]) + 2),
-                param.data.detach().cpu().numpy().flatten(),
-            )
-
-        print("\n---------------------------\n\n")
 
 
 class FMGP_Embedding(FMGP_Base):
