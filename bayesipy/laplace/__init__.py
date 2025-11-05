@@ -5,8 +5,9 @@ from laplace.baselaplace import ParametricLaplace
 
 from .ella import ELLA
 from .valla import VaLLA
+from .scalla import ScaLLA
 
-__all__ = ["Laplace", "ELLA", "VaLLA"]
+__all__ = ["Laplace", "ELLA", "VaLLA", "ScaLLA"]
 
 
 def Laplace(
