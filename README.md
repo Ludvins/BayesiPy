@@ -33,12 +33,12 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 - **Curvature Approximations**: You can choose from diagonal, KFAC, or exact Hessian approximations to balance computational cost with approximation accuracy.
 
 **References**:  
-- Immer et al. (2021) – *“Improving Predictions of Neural Networks via Monte Carlo Methods, the Laplace Approximation, and Bayesian Neural Networks.”* [[arXiv](https://arxiv.org/abs/2106.14806)]  
+- Immer et al. (2021) – *“Improving Predictions of Neural Networks via Monte Carlo Methods, the Laplace Approximation, and Bayesian Neural Networks.”* [[AISTATS](https://proceedings.mlr.press/v130/immer21a/immer21a.pdf)]  
 
 **accElerated Linearized Laplace Approximation (ELLA)** specifically accelerates and approximates linearized Laplace approximation by using subsets of data, Nyström approximations and other low-rank techniques to handle larger models and datasets. Its emphasis on scalability and memory efficiency makes it appealing for modern architectures.
 
 - *Source:* Deng et al. (2022) proposed an accelerated linearized Laplace method (ELLA) with a Nyström approximation to the network’s tangent kernel for improved scalability.  
-  [[NeurIPS](https://proceedings.neurips.cc/paper_files/paper/2022/hash/5d826cc6b2b713e3b9aad0b67c3b0f79-Abstract-Conference.html)]
+  [[NeurIPS](https://proceedings.neurips.cc/paper_files/paper/2022/file/12143893d9d37c3569dda800b95cabd9-Paper-Conference.pdf)]
 
 **Variational Linearized Laplace Approximation (VaLLA)** is another variant of LLA that leverages sparse Gaussian processes in function space. Rather than computing Hessians directly, VaLLA uses variational inference to fit a GP whose mean is anchored at the DNN output. In practice, VaLLA can yield high-quality calibration with sub-linear complexity in the dataset size.
 
@@ -60,7 +60,7 @@ BayesiPy integrates the full suite of [Linearized Laplace approximations](https:
 
 **Spectral-Normalized Gaussian Process (SNGP)** integrates a GP layer at the network’s output and enforces a distance-preserving feature space via spectral normalization. This makes the network’s predictions *distance-aware*, which helps with out-of-distribution (OOD) detection. SNGP typically involves a re-training or fine-tuning step to incorporate the spectral normalization in earlier layers.
 
-- *Source:* Liu et al. (2020) – *“Simple and Principled Uncertainty Estimation with Deterministic Deep Learning via Distance Awareness.”* [[NeurIPS](https://proceedings.neurips.cc/paper/2020/hash/4089e94f74c885f1bfb1e77f2711b67b-Abstract.html)]
+- *Source:* Liu et al. (2020) – *“Simple and Principled Uncertainty Estimation with Deterministic Deep Learning via Distance Awareness.”* [[NeurIPS](https://proceedings.neurips.cc/paper/2020/file/543e83748234f7cbab21aa0ade66565f-Paper.pdf)]
 
 ---
 
@@ -184,22 +184,22 @@ By contributing, you help advance accessible Bayesian deep learning methods for 
 ## Bibliography
 
 1. **Immer et al. (2021)** – *“Improving Predictions of Neural Networks via Monte Carlo Methods, the Laplace Approximation, and Bayesian Neural Networks.”*  
-   [[arXiv:2106.14806]](https://arxiv.org/abs/2106.14806)
+   AISTATS 2021, [Link](https://proceedings.mlr.press/v130/immer21a/immer21a.pdf)
 
 2. **Kristiadi et al. (2020)** – *“Being Bayesian, Even Just a Bit, Fixes Overconfidence in ReLU Networks.”*  
    ICML 37:5436–5446, [Link](http://proceedings.mlr.press/v119/kristiadi20a/kristiadi20a.pdf)
 
 3. **Deng et al. (2022)** – *“Accelerated Linearized Laplace Approximation for Bayesian Deep Learning.”*  
-   NeurIPS 35, [Link](https://proceedings.neurips.cc/paper_files/paper/2022/hash/5d826cc6b2b713e3b9aad0b67c3b0f79-Abstract-Conference.html)
+   NeurIPS 35, [Link](https://proceedings.neurips.cc/paper_files/paper/2022/file/12143893d9d37c3569dda800b95cabd9-Paper-Conference.pdf)
 
 4. **Ortega et al. (2024a)** – *“Variational Linearized Laplace Approximation for Bayesian Deep Learning.”*  
-   ICML 41, [Link](https://proceedings.mlr.press/v189/deng23b/deng23b.pdf)
+   ICML 41, [Link](https://proceedings.mlr.press/v235/ortega24a.html)
 
 5. **Deng et al. (2021)** – *“BayesAdapter: Being Bayesian, Inexpensively and Robustly, via Bayesian Fine-tuning.”*  
    ACML, [Link](http://proceedings.mlr.press/v37/blundell15.html)
 
 6. **Liu et al. (2020)** – *“Simple and Principled Uncertainty Estimation with Deterministic Deep Learning via Distance Awareness.”*  
-   NeurIPS 33, [Link](https://proceedings.neurips.cc/paper/2020/hash/4089e94f74c885f1bfb1e77f2711b67b-Abstract.html)
+   NeurIPS 33, [Link](https://proceedings.neurips.cc/paper/2020/file/543e83748234f7cbab21aa0ade66565f-Paper.pdf)
 
 7. **Ortega et al. (2024b)** – *“Fixed-Mean Gaussian Processes for Post-hoc Bayesian Deep Learning.”*  
    [[arXiv:2412.04177]](https://arxiv.org/abs/2412.04177)
