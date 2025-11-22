@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy project metadata & code
 COPY pyproject.toml README.md ./
-COPY . .
+COPY benchmarks ./
+COPY data ./
+COPY src ./
 
 # Upgrade pip
 RUN python -m pip install --upgrade pip
