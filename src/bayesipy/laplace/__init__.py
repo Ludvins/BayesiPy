@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from typing import cast
+
 import torch
 from laplace.baselaplace import ParametricLaplace
 
 from .ella import ELLA
-from .valla import VaLLA
 from .scalla import ScaLLA
+from .valla import VaLLA
 
 __all__ = ["Laplace", "ELLA", "VaLLA", "ScaLLA"]
 

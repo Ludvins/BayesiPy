@@ -1,12 +1,12 @@
-import numpy as np
+from typing import Optional, Sized, cast
+
 import torch
 import torch.autograd.forward_ad as fwAD
+from torch.distributions.multivariate_normal import _precision_to_scale_tril
+from torch.func import functional_call
+from torch.nn.utils import parameters_to_vector
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
-from torch.distributions.multivariate_normal import _precision_to_scale_tril
-from torch.nn.utils import parameters_to_vector
-from torch.func import functional_call
 
 
 class ScaLLA:
@@ -96,23 +96,23 @@ class ScaLLA:
         self.generator = torch.Generator(device=self.device).manual_seed(self.seed)
 
         # -- Posterior quantities (to be computed after fitting) --
-        self._posterior_scale = None  # Cholesky factor of posterior covariance
-        self.H = None                 # Approximate Hessian (GGN) placeholder
+        self._posterior_scale: Optional[torch.Tensor] = None  # Cholesky factor of posterior covariance
+        self.H : Optional[torch.Tensor] = None                 # Approximate Hessian (GGN) placeholder
         self.loss = 0                 # Training loss placeholder for use in the log-likelihood
 
         # -- Additional attributes --
-        self.n_outputs = None
-        self.n_features = None
-        self.num_train = None
+        self.n_outputs : Optional[int] = None
+        self.n_features: Optional[int] = None
+        self.num_train : Optional[int] = None
 
     def fit(
         self,
         iterations: int,
         train_loader: DataLoader,
-        context_points_loader: DataLoader = None,
+        context_points_loader: DataLoader | None = None,
         zero_crossed_variances: bool = False,
-        weight_decay: float = None,
-        lr: float = None,
+        weight_decay: float | None = None,
+        lr: float | None = None,
         optimize_hyper_parameters: bool = True,
         prior_opt_lr: float = 1e-3,
         prior_opt_iterations: int = 100,
@@ -176,10 +176,9 @@ class ScaLLA:
         # Prepare for kernel norm minimization by ensuring shapes/dimensions are known.
         data = next(iter(train_loader))
         X = data[0]
-        total_size = len(train_loader.dataset)
+        total_size = len(cast(Sized, train_loader.dataset))
         self.num_train = total_size
         
-        self.feature_model.eval()
         self.feature_model.eval()
 
         # Attempt a forward pass for shape initialization.
@@ -193,8 +192,6 @@ class ScaLLA:
             
         self.feature_model.train()
             
-        self.feature_model.train()
-
         self.n_outputs = out.shape[-1]
 
         # Reset loss and Hessian buffer.
@@ -212,7 +209,7 @@ class ScaLLA:
             context_points_iter = iter(context_points_loader)
 
         losses = []
-        losses_exact = []   
+        losses_exact : list[float] = []   
 
         # Make sure the primary model's parameters require grad during JVP calculations.
         for p in self.model.parameters():
@@ -332,7 +329,7 @@ class ScaLLA:
         return losses, losses_exact
             
 
-    def _true_jacobian(self, X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
+    def _true_jacobian(self, X: torch.Tensor, Y: torch.Tensor):
         """
         Compute a single random Jacobian-vector product (JVP) for the primary model.
 
@@ -368,45 +365,12 @@ class ScaLLA:
 
         return jvp.detach()
     
-    @torch.no_grad()
-    def _true_jacobian2(self, x):
-
-        params_dict = { k: v for k, v in self.model.named_parameters() if v.requires_grad }
-        buffers_dict =  { k: v for k, v in self.model.named_buffers() }
-
-        def model_fn_params_only(params_dict, buffers_dict):
-            out = torch.func.functional_call(self.model, (params_dict, buffers_dict), x)
-            return out, out
-
-        Js, f = torch.func.jacrev(model_fn_params_only, has_aux=True)(params_dict, buffers_dict)
-        Js = [ j.flatten(start_dim=-p.dim()) for j, p in zip(Js.values(), params_dict.values()) ]
-        Js = torch.cat(Js, dim=-1)
-
-        return Js.detach().permute(0, 2, 1)
-
-    
-    @torch.no_grad()
-    def _true_jacobian2(self, x):
-
-        params_dict = { k: v for k, v in self.model.named_parameters() if v.requires_grad }
-        buffers_dict =  { k: v for k, v in self.model.named_buffers() }
-
-        def model_fn_params_only(params_dict, buffers_dict):
-            out = torch.func.functional_call(self.model, (params_dict, buffers_dict), x)
-            return out, out
-
-        Js, f = torch.func.jacrev(model_fn_params_only, has_aux=True)(params_dict, buffers_dict)
-        Js = [ j.flatten(start_dim=-p.dim()) for j, p in zip(Js.values(), params_dict.values()) ]
-        Js = torch.cat(Js, dim=-1)
-
-        return Js.detach().permute(0, 2, 1)
-
 
     def log_marginal_likelihood(
         self,
         prior_precision: torch.Tensor | None = None,
         sigma_noise: torch.Tensor | None = None,
-    ) -> torch.Tensor:
+    ):
         """
         Compute the approximate log marginal likelihood under the Laplace approximation.
 
@@ -446,11 +410,13 @@ class ScaLLA:
         Uses `_precision_to_scale_tril` from PyTorch to invert the posterior
         precision matrix and produce a lower-triangular factor.
         """
+        if self.n_features is None:
+            raise RuntimeError("n_features is not set. Ensure `fit` has been called.")
         eye = torch.eye(self.n_features, device=self.device, dtype=self.dtype)
         self._posterior_scale = _precision_to_scale_tril(self.posterior_precision + 1e-6 * eye).to(self.dtype)
 
     @property
-    def scatter(self) -> torch.Tensor:
+    def scatter(self):
         r"""
         Scatter term: (θ_MAP - μ0)^T * P0 * (θ_MAP - μ0).
 
@@ -466,7 +432,7 @@ class ScaLLA:
         return (delta * self.prior_precision) @ delta
 
     @property
-    def prior_precision_diag(self) -> torch.Tensor:
+    def prior_precision_diag(self):
         """
         Return the diagonal of the prior precision matrix.
 
@@ -484,6 +450,8 @@ class ScaLLA:
             else torch.tensor(self.prior_precision, device=self.device)
         )
         if prior_prec.ndim == 0 or len(prior_prec) == 1:
+            if self.n_features is None:
+                raise RuntimeError("n_features is not set. Ensure `fit` has been called.")
             return prior_prec * torch.ones(self.n_features, device=self.device)
         elif len(prior_prec) == self.n_features:
             return prior_prec
@@ -491,7 +459,7 @@ class ScaLLA:
             raise ValueError("Mismatch between prior_precision and n_features.")
 
     @property
-    def posterior_scale(self) -> torch.Tensor:
+    def posterior_scale(self):
         """
         Lower-triangular factor (Cholesky) of the posterior covariance.
 
@@ -503,10 +471,12 @@ class ScaLLA:
         """
         if self._posterior_scale is None:
             self._compute_scale()
+        if self._posterior_scale is None:
+            raise RuntimeError("Posterior scale is not computed.")
         return self._posterior_scale
 
     @property
-    def posterior_covariance(self) -> torch.Tensor:
+    def posterior_covariance(self):
         r"""
         Full posterior covariance matrix P^{-1}.
 
@@ -516,7 +486,7 @@ class ScaLLA:
         return self.posterior_scale @ self.posterior_scale.T
 
     @property
-    def posterior_precision(self) -> torch.Tensor:
+    def posterior_precision(self):
         r"""
         Posterior precision matrix P.
 
@@ -541,7 +511,7 @@ class ScaLLA:
         return self._H_factor * self.H + torch.diag(self.prior_precision_diag)
 
     @property
-    def log_det_posterior_precision(self) -> torch.Tensor:
+    def log_det_posterior_precision(self):
         """
         Log-determinant of the posterior precision matrix.
 
@@ -553,7 +523,7 @@ class ScaLLA:
         return self.posterior_precision.logdet()
 
     @property
-    def log_det_prior_precision(self) -> torch.Tensor:
+    def log_det_prior_precision(self):
         """
         Log-determinant of the diagonal prior precision matrix.
 
@@ -565,7 +535,7 @@ class ScaLLA:
         return self.prior_precision_diag.log().sum()
 
     @property
-    def log_det_ratio(self) -> torch.Tensor:
+    def log_det_ratio(self):
         r"""
         \(\log \det(P) - \log \det(P_0)\).
 
@@ -575,7 +545,7 @@ class ScaLLA:
         return self.log_det_posterior_precision - self.log_det_prior_precision
 
     @property
-    def _H_factor(self) -> torch.Tensor:
+    def _H_factor(self):
         """
         Scaling factor for the Hessian term H.
 
@@ -592,7 +562,7 @@ class ScaLLA:
         return 1 / sigma2
 
     @property
-    def log_likelihood(self) -> torch.Tensor:
+    def log_likelihood(self):
         r"""
         Log likelihood of the training data under the current parameters.
 
@@ -610,7 +580,9 @@ class ScaLLA:
         """
         factor = -self._H_factor
         if self.likelihood == "regression":
-            c = self.num_train * self.n_outputs * torch.log(self.sigma_noise * np.sqrt(2 * np.pi))
+            if self.num_train is None or self.n_outputs is None or self.sigma_noise is None:
+                raise RuntimeError("num_train, n_outputs, or sigma_noise is not set. Ensure `fit` has been called.")
+            c = 0.5 * self.num_train * self.n_outputs * torch.log(2 * torch.pi * self.sigma_noise**2)
             return factor * self.loss - c
         else:
             return factor * self.loss
@@ -675,7 +647,7 @@ class ScaLLA:
         return F_mean * self.y_std + self.y_mean, F_var * self.y_std**2
 
     @property
-    def prior_precision(self) -> torch.Tensor:
+    def prior_precision(self):
         """
         The prior precision vector/tensor.
 
@@ -701,7 +673,7 @@ class ScaLLA:
             raise ValueError("prior_precision must be a scalar or a torch.Tensor.")
 
     @property
-    def sigma_noise(self) -> torch.Tensor:
+    def sigma_noise(self):
         """
         Observation noise standard deviation for regression tasks.
 

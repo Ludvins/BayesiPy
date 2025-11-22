@@ -1,16 +1,20 @@
-from typing import Callable, Optional, Any
+from typing import Any, Callable, Optional
 
 import numpy as np
 import torch
 from scipy.cluster.vq import kmeans2
 from tqdm import tqdm
 
-from bayesipy.fmgp.kernels import LastLayerNTK_SquaredExponential, SquaredExponential, DotProduct
-from bayesipy.utils import gaussian_logdensity
+from bayesipy.fmgp.kernels import (
+    DotProduct,
+    LastLayerNTK_SquaredExponential,
+    SquaredExponential,
+)
+from bayesipy.utils import gaussian_logdensity, safe_cholesky
 from bayesipy.utils.metrics import score
-from bayesipy.utils import safe_cholesky
 
 from .utils import compute_length_scale_estimation
+
 
 class FMGP_Base(torch.nn.Module):
     """Base class for the Uncertainty Estimation models.

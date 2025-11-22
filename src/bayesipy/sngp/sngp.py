@@ -7,7 +7,7 @@ from torch import Tensor, nn
 from torch.nn import init
 from torch.nn.utils.parametrizations import spectral_norm
 from tqdm import tqdm
-from torch.nn import init
+
 from bayesipy.utils import gaussian_logdensity
 
 
@@ -101,7 +101,7 @@ class SNGP(nn.Module):
                  normalize_input: bool = True, 
                  gp_cov_momentum: float = 0.999, 
                  gp_cov_ridge_penalty: float = 1e-3, 
-                 noise_variance: float = None,
+                 noise_variance: Optional[float] = None,
                  y_mean: float = 0.0,
                  y_std: float = 1.0,
                  seed: Optional[int] = None):
@@ -433,7 +433,7 @@ class SNGP(nn.Module):
         sampled_logits = means + stddevs * rand_samples
         return sampled_logits.permute(2, 0, 1)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor):
         """
         Forward pass through the SNGP model.
 
@@ -452,7 +452,7 @@ class SNGP(nn.Module):
         return gp_output
 
     @torch.no_grad()
-    def predict(self, x: Tensor) -> Tensor:
+    def predict(self, x: Tensor):
         """
         Predict output for the input data.
 
