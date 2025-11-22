@@ -1,0 +1,11 @@
+{
+  "verbose": true,
+  "output": "benchmarks/regression/results",
+  "method": "mfvi",
+  "batch_size": 128,
+  "seed": 0,
+  "mfvi_iterations": 8000,
+  "mfvi_prior": 1.0,
+  "mfvi_n_samples": 20,
+  "mfvi_noise_variance": 1.0
+}

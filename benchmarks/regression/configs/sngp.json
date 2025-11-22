@@ -1,0 +1,19 @@
+{
+  "verbose": true,
+  "output": "benchmarks/regression/results",
+  "method": "sngp",
+  "batch_size": 128,
+  "sngp_kernel_scale": 1.0,
+  "sngp_n_random_features": 1024,
+  "sngp_gp_output_bias": 0.0,
+  "sngp_layer_norm_eps": 0.000001,
+  "sngp_n_power_iterations": 1,
+  "sngp_scale_random_features": false,
+  "sngp_normalize_input": false,
+  "sngp_gp_cov_momentum": 0.999,
+  "sngp_gp_cov_ridge_penalty": 0.001,
+  "sngp_iterations": 20000,
+  "sngp_lr": 0.00001,
+  "sngp_weight_decay": 0.1,
+  "sngp_noise_variance": 1.0
+}

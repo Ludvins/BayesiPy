@@ -1,0 +1,8 @@
+{
+  "verbose": true,
+  "output": "benchmarks/regression/results",
+  "method": "lla",
+  "batch_size": 128,
+  "lla_subset": "last_layer",
+  "lla_hessian": "kron"
+}

@@ -1,0 +1,12 @@
+{
+  "verbose": true,
+  "output": "benchmarks/regression/results",
+  "method": "fmgp",
+  "batch_size": 128,
+  "fmgp_iterations": 70000,
+  "fmgp_lr": 0.001,
+  "fmgp_noise_variance": 1e-5,
+  "fmgp_kernel": "RBF",
+  "fmgp_inducing_locations": "kmeans",
+  "fmgp_num_inducing": 100
+}

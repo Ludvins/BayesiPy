@@ -1,0 +1,6 @@
+{
+  "verbose": true,
+  "output": "benchmarks/regression/results",
+  "method": "map",
+  "batch_size": 128
+}

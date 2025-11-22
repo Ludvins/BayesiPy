@@ -1,0 +1,11 @@
+{
+  "verbose": true,
+  "output": "benchmarks/regression/results",
+  "method": "valla",
+  "batch_size": 128,
+  "valla_inducing_locations": "kmeans",
+  "valla_num_inducing": 100,
+  "valla_noise_variance": 1e-5,
+  "valla_iterations": 40000,
+  "valla_lr": 0.001
+}

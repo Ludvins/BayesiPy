@@ -1,0 +1,9 @@
+{
+  "verbose": true,
+  "output": "benchmarks/regression/results",
+  "method": "ella",
+  "batch_size": 128,
+  "ella_subsample": 1024,
+  "ella_n_eigenvalues": 50,
+  "ella_prior": 1.0
+}
