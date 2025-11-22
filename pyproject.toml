@@ -24,8 +24,8 @@ classifiers = [
 dependencies = [
   "torch>=2.2.0",
   "numpy>=1.26.3",
-  "laplace-torch>=0.1a2",
-  "curvlinops-for-pytorch>=2.0.1"
+  "laplace-torch>=0.2.2.2",
+  "curvlinops-for-pytorch==2.0.1"
 ]
 
 [project.optional-dependencies]
