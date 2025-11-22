@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bayesipy-uncertainty"  # pick a unique name if you plan to publish
+version = "0.0.1"
+description = "Post-hoc uncertainty estimation methods for pre-trained neural networks."
+readme = "README.md"
+requires-python = ">=3.11.14"
+license = { text = "MIT" }
+authors = [
+  { name = "Ludvins", email = "theludvins@gmail.com" },
+]
+keywords = ["bayesian-deep-learning", "uncertainty", "laplace", "variational-inference"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Fill this list from your current requirements.txt
+dependencies = [
+  "torch>=2.2.0",
+  "numpy>=1.26.3",
+  "laplace-torch>=0.1a2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=4.1",
+  "mypy>=1.10",
+  "ruff>=0.5",
+  "black>=24.0",
+]
+
+[tool.setuptools]
+# We'll switch to src layout in the next step; if you skip that, tweak this.
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["tests"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+lint.extend-select = ["B", "I"]
+src = ["src", "tests"]
+
+[tool.mypy]
+python_version = "3.11"
+
+strict = false
+
+# Very important: avoid tons of 3rd-party stub errors
+ignore_missing_imports = true
+
+# Allow untyped functions for now
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+
+# Still useful warnings
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+
+mypy_path = ["src"]
