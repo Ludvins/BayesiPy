@@ -41,6 +41,7 @@ dev = [
   "ruff>=0.5",
   "black>=24.0",
 ]
+benchmarks = ["mlflow", "pandas"]
 
 [tool.setuptools]
 # We'll switch to src layout in the next step; if you skip that, tweak this.
