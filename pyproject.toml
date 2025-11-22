@@ -25,7 +25,12 @@ dependencies = [
   "torch>=2.2.0",
   "numpy>=1.26.3",
   "laplace-torch>=0.2.2.2",
-  "curvlinops-for-pytorch==2.0.1"
+  "curvlinops-for-pytorch==2.0.1",
+  "backpack-for-pytorch==1.6.0",
+  "properscoring==0.1",
+  "scikit-learn>=1.4.0",
+  "tqdm>=4.66.1",
+  "Pillow>=9.3.0"
 ]
 
 [project.optional-dependencies]
