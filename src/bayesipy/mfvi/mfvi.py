@@ -12,9 +12,7 @@ from .utils.linear import BayesLinearMF
 
 
 class MFVI(torch.nn.Module):
-    def __init__(
-        self, model, likelihood, prior_precision, n_samples, seed, noise_std=None, y_mean=0, y_std=1
-    ) -> None:
+    def __init__(self,  model,likelihood, prior_precision, n_samples, seed, noise_variance = None, y_mean=0, y_std=1) -> None:
         super(MFVI, self).__init__()
 
         # Get a parameter
@@ -30,9 +28,7 @@ class MFVI(torch.nn.Module):
         self.n_samples = n_samples
         self.likelihood = likelihood
         if self.likelihood == "regression":
-            self.log_noise = torch.nn.Parameter(
-                torch.tensor(np.log(noise_std), device=self.device, dtype=self.dtype)
-            )
+            self.log_noise = torch.nn.Parameter(torch.tensor(0.5*np.log(noise_variance), device=self.device, dtype=self.dtype))
         self.y_mean = y_mean
         self.y_std = y_std
 
@@ -65,7 +61,7 @@ class MFVI(torch.nn.Module):
             gaussian_log_likelihood = gaussian_logdensity(y_pred, noise**2, targets)
             return -gaussian_log_likelihood.mean()
 
-    def fit(self, train_loader, iterations, verbose=False):
+    def fit(self, train_loader, iterations, mean_lr = 1e-4, var_lr = 1e-3, mean_weight_decay = 2e-4, var_weight_decay = 0, momentum=0.9, verbose=False):
         self.train()
 
         self.num_data = len(train_loader.dataset)
@@ -80,17 +76,17 @@ class MFVI(torch.nn.Module):
 
         optimizer = torch.optim.SGD(
             [
-                {"params": mus, "lr": 1e-4, "weight_decay": 2e-4},
-                {"params": psis, "lr": 1e-3, "weight_decay": 0},
+                {"params": mus, "lr": mean_lr, "weight_decay": mean_weight_decay},
+                {"params": psis, "lr": var_lr, "weight_decay": var_weight_decay},
             ],
-            momentum=0.9,
+            momentum=momentum,
             nesterov=True,
         )
 
         # Define the Adam optimizer specifically for 'self.log_noise'
         if self.likelihood == "regression":
             optimizer_adam = torch.optim.Adam(
-                [{"params": self.log_noise, "lr": 1e-4, "weight_decay": 0}]
+                [{"params": self.log_noise, "lr": mean_lr}]
             )
 
         if verbose:
@@ -122,18 +118,25 @@ class MFVI(torch.nn.Module):
 
             if self.likelihood == "regression":
                 optimizer_adam.step()
-
+            
             optimizer.step()
         return losses
 
+    @torch.no_grad()
     def predict(self, x):
         self.eval()
-        with torch.no_grad():
-            x = x.to(self.device).to(self.dtype)
-            y_preds = [self.mfvi_model(x) for _ in range(self.n_samples)]
-            ret = torch.stack(y_preds)
+        x = x.to(self.device).to(self.dtype)
+        y_preds = [self.mfvi_model(x) for _ in range(self.n_samples)]
+        ret = torch.stack(y_preds)
 
+        if self.likelihood == "classification":
             return ret * self.y_std + self.y_mean
+        elif self.likelihood == "regression":
+            # In this case, return mean and variance of Gaussian mixture of samples
+            mean = ret.mean(0) * self.y_std + self.y_mean
+            variance = ret.var(0) + self.log_noise.exp()**2 * self.y_std**2
+            return mean, variance
+            
 
     def sample(self, x):
         self.mfvi_model.eval()

@@ -144,9 +144,7 @@ class ELLA(torch.nn.Module):
             )
         # Bould the dual parameters list
         self._build_dual_params_list(sub_sample_loader)
-
-        # self._build_dual_params_list(self.params, xs, ys, num_classes=self.n_outputs, random=True, K=20, args=None, num_batches=100, verbose=True)
-
+        
         # Initialize feature product matrix
         self.subset_feature_product = torch.zeros(self.K, self.K).to(
             device=self.device, dtype=self.dtype, non_blocking=True
@@ -161,10 +159,9 @@ class ELLA(torch.nn.Module):
         if metrics_cls is not None:
             stored_metrics = []
 
-        for i, (x, y) in enumerate(train_loader):
+        for i, (x, _) in enumerate(train_loader):
             # Take batch of data
             x = x.to(self.device).to(self.dtype)
-            y = y.to(self.device)
             # Compute the features and the output
             Psi_x, logits = self._features(x, return_output=True)
 
@@ -231,6 +228,11 @@ class ELLA(torch.nn.Module):
         for x, y in val_loader:
             x = x.to(self.device).to(self.dtype)
             y = y.to(self.device)
+            
+            # Handle one-hot encoding for classification
+            if self.likelihood == "classification" and y.shape[-1] > 1:
+                y = y.argmax(-1, keepdim=True)
+            
             # Compute predictive distribution
             F_mean, F_var = self.predict(x)
 

@@ -383,6 +383,10 @@ class VaLLA(torch.nn.Module):
             training_targets.append(targets)
         training_data = torch.cat(training_data, axis=0)
         training_targets = torch.cat(training_targets, axis=0)
+                
+        # If needed convert one-hot into numerical
+        if self.likelihood == "classification" and len(training_targets.shape) > 1 and  training_targets.shape[1] > 1:
+            training_targets = training_targets.argmax(dim=1)
 
         if self.likelihood == "regression":
             self.inducing_locations = kmeans2(
@@ -444,10 +448,7 @@ class VaLLA(torch.nn.Module):
         if override:
             data = next(iter(train_loader))
             X = data[0].to(self.device).to(self.dtype)
-            try:
-                model_output = self.model[0](X[0])
-            except (TypeError, AttributeError, ValueError):
-                model_output = self.model[0](X[:1])
+            model_output = self.model[0](X[:1])
 
             self.output_dim = model_output.shape[-1]
             self.num_data = len(train_loader.dataset)

@@ -531,6 +531,8 @@ def score(model, generator, metrics_cls, verbose=False):
             targets = targets.to(model.device).to(model.dtype)
             Fmean, Fvar = model.predict(inputs)
             metrics.update(targets, Fmean, Fvar)
+                
+            
     # Return metrics as a dictionary
     return metrics.get_dict()
 
