@@ -21,6 +21,49 @@ In the sections below, we explain each technique and cite their original referen
 
 ---
 
+## Instalation
+
+
+BayesiPy is a Python (≥3.10) / PyTorch library. You need a working PyTorch install (CPU or GPU) – see [pytorch.org](https://pytorch.org) for platform-specific instructions.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/Ludvins/BayesiPy.git
+cd BayesiPy
+```
+
+### 2. Create and activate a virtual environment (recommended)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate 
+python -m pip install --upgrade pip
+```
+
+### 3.Install BayesiPy
+
+User install (just the library + core deps):
+```bash
+pip install .
+```
+
+or directly from GitHub in another project:
+
+```bash
+pip install "git+https://github.com/Ludvins/BayesiPy.git"
+```
+
+This installs BayesiPy as a package (import bayesipy) from your working copy, so changes in the repo are immediately reflected without re-installing.
+
+### Developer / editable install (recommended if you modify the code):
+
+```bash
+pip install -e .
+```
+
+---
+
 ## Uncertainty Estimation Techniques in BayesiPy
 
 ### 1. Linearized Laplace Methods
@@ -90,23 +133,6 @@ Below is a brief summary comparing these techniques, with insights drawn from bo
 
 ---
 
-## Installation
-
-BayesiPy is built with Python (>=3.8) and PyTorch as the core deep learning library. You’ll need to have PyTorch installed (see [pytorch.org](https://pytorch.org) for instructions) plus some additional packages like [BackPACK](https://github.com/f-dangel/backpack) for efficient Hessian approximations in Laplace.
-
-### Steps
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/Ludvins/BayesiPy.git
-   cd BayesiPy
-   ```
-2. Install dependencies:
-  ```bash
-  pip install -r requirements.txt
-  ```
-
-This will install PyTorch, Backpack, and other required libraries. It’s recommended to use a virtual environment (e.g., venv or Conda) to isolate your setup.
 
 ## Usage Example
 
