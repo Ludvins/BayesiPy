@@ -177,16 +177,13 @@ python benchmarks/regression/regression_unified_mlflow.py \
 
 Any CLI flags you pass alongside `--config` can override fields in the JSON if needed.
 
-You can also use `"seeds": [0, 1, 2, 3, 4]` in the config to run multiple seeds in one invocation (if supported in your current script version). In that case the script will run one child MLflow run per seed, and optionally aggregate results across seeds in a parent run.
-
 ---
 
 ## 6. MLflow logging details
 
 - **Experiment name**: `bayesipy_regression`
 - **Runs**:
-  - Parent runs: one per `(dataset, method)` when using multiple seeds (e.g. `"year_lla_allseeds"`).
-  - Child runs: one per seed (nested under the parent run, e.g. `"year_lla_seed0"`).
+  - one per seed `"year_lla_seed0"`.
 - **Parameters**:
   - Always: core parameters (`dataset`, `method`, `batch_size`, `seed`, `output`, `verbose`, etc.).
   - Method-specific: only the parameters matching the method prefix are logged:
@@ -197,10 +194,6 @@ You can also use `"seeds": [0, 1, 2, 3, 4]` in the config to run multiple seeds 
 - **Metrics**:
   - Regression metrics from `score` (RMSE, NLL, calibration metrics, CRPS, …).
   - `train_time` and `test_time`.
-  - For parent runs (multi-seed): mean and std of each numeric metric across seeds, e.g.:
-    - `RMSE_mean`, `RMSE_std`
-    - `NLL_mean`, `NLL_std`
-    - etc.
 - **Artifacts**:
   - CSV metrics file per run: `<output>/<dataset>/<method>_<seed>.csv`
   - JSON config used for the run: `config_<dataset>_<method>_seed<seed>.json`
@@ -227,7 +220,6 @@ To make the table more informative, enable columns such as:
 - `params.method`
 - `params.seed`
 - `metrics.RMSE`, `metrics.NLL`, `metrics.CRPS`, etc.
-- `metrics.RMSE_mean`, `metrics.RMSE_std` (for parent runs).
 
 ---
 
@@ -308,7 +300,7 @@ that loops over datasets / methods / seeds and calls:
 From the repo root:
 
 ```bash
-docker build -f Dockerfile.benchmarks -t bayesipy-benchmarks-gpu .
+docker build -f benchmarks/regression/Dockerfile -t bayesipy-benchmarks-regression .
 ```
 
 This uses Python 3.11 inside the container and installs a CUDA-enabled PyTorch wheel.
@@ -329,7 +321,7 @@ docker run --rm --gpus all \
   -v "$(pwd)/benchmarks_output:/workspace/benchmarks/regression/results" \
   -v "$(pwd)/mlruns:/workspace/mlruns" \
   -v "$(pwd)/mlflow.db:/workspace/mlflow.db" \
-  bayesipy-benchmarks-gpu
+  bayesipy-benchmarks-regression
 ```
 
 This will:
@@ -357,8 +349,8 @@ docker run --rm --gpus all \
   -v "$(pwd)/benchmarks_output:/workspace/benchmarks/regression/results" \
   -v "$(pwd)/mlruns:/workspace/mlruns" \
   -v "$(pwd)/mlflow.db:/workspace/mlflow.db" \
-  bayesipy-benchmarks-gpu \
-  python benchmarks/regression/regression_unified_mlflow.py \
+  bayesipy-benchmarks-regression \
+  python benchmarks/regression/regression_unified.py \
     --dataset year \
     --method lla \
     --seed 0 \

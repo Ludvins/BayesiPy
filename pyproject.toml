@@ -45,10 +45,10 @@ benchmarks = ["mlflow", "pandas"]
 
 [tool.setuptools]
 # We'll switch to src layout in the next step; if you skip that, tweak this.
-package-dir = {"" = "src"}
+# package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
-where = ["src"]
+# where = ["src"]
 exclude = ["tests"]
 
 [tool.pytest.ini_options]
@@ -60,7 +60,7 @@ testpaths = ["tests"]
 target-version = "py311"
 line-length = 88
 lint.extend-select = ["B", "I"]
-src = ["src", "tests"]
+src = ["bayesipy", "tests"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -80,4 +80,4 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_return_any = true
 
-mypy_path = ["src"]
+mypy_path = ["bayesipy"]

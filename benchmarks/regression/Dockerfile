@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy project metadata & code
 COPY pyproject.toml README.md ./
-COPY benchmarks ./
-COPY data ./
-COPY src ./
+COPY benchmarks benchmarks
+COPY data data
+COPY bayesipy bayesipy
 
 # Upgrade pip
 RUN python -m pip install --upgrade pip

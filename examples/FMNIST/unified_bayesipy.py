@@ -181,10 +181,10 @@ def build_inferencer(model: nn.Module, args) -> Any:
                         num_inducing=args.valla_num_inducing,
                         seed=args.seed)
             
-    if args.method == "alla":
+    if args.method == "scalla":
         from bayesipy.laplace import ScaLLA
         scale_params = sum(p.numel() for p in model.parameters())
-        feature_model = ConvHead(n_features=args.alla_n_features, scale_params=scale_params)
+        feature_model = ConvHead(n_features=args.scalla_n_features, scale_params=scale_params)
         return ScaLLA(model,
                     feature_model,
                     likelihood="classification",
@@ -238,17 +238,17 @@ def train(inferencer: Any, train_loader: DataLoader, context_loader: DataLoader,
             lr=args.valla_lr,
             verbose=args.verbose,
         )
-    if args.method == "alla":
+    if args.method == "scalla":
         inferencer.fit(
             train_loader=train_loader,
             context_points_loader=context_loader,
-            iterations=args.alla_iterations,
-            lr=args.alla_lr,
-            weight_decay=args.alla_weight_decay,
-            optimize_hyper_parameters=args.alla_optimize_hyper_parameters,
-            prior_opt_iterations=args.alla_prior_opt_iterations,
-            prior_opt_lr=args.alla_prior_opt_lr,
-            zero_crossed_variances=args.alla_zero_crossed_variances,
+            iterations=args.scalla_iterations,
+            lr=args.scalla_lr,
+            weight_decay=args.scalla_weight_decay,
+            optimize_hyper_parameters=args.scalla_optimize_hyper_parameters,
+            prior_opt_iterations=args.scalla_prior_opt_iterations,
+            prior_opt_lr=args.scalla_prior_opt_lr,
+            zero_crossed_variances=args.scalla_zero_crossed_variances,
             verbose=args.verbose,
         )
     if args.method == "mfvi":
@@ -424,18 +424,18 @@ def parse_args():
     p.add_argument('--data', type=str, default='./data', help='Directory to download data to')
     p.add_argument('--num-workers', type=int, default=2)    
     p.add_argument("--verbose", action="store_true", help="Verbose")
-    p.add_argument("--method", type=str, choices=["map","fmgp","lla","ella","mfvi","sngp", "valla", "alla"], required=True)
+    p.add_argument("--method", type=str, choices=["map","fmgp","lla","ella","mfvi","sngp", "valla", "scalla"], required=True)
     p.add_argument("--batch_size", type=int, default=100)
     p.add_argument("--seed", type=int, default=0, help="Seed")
-    # ALLA
-    p.add_argument("--alla-iterations", type=int, default=1_000_000)
-    p.add_argument("--alla_lr", type=float, default=0.5e-4)
-    p.add_argument("--alla_weight_decay", type=float, default=0.0)
-    p.add_argument("--alla_n_features", type=int, default=100)
-    p.add_argument("--alla_optimize_hyper_parameters", action="store_true")
-    p.add_argument("--alla_prior_opt_iterations", type=int, default=1_000)
-    p.add_argument("--alla_prior_opt_lr", type=float, default=0.1)
-    p.add_argument("--alla_zero_crossed_variances", action="store_true")
+    # SCALLA
+    p.add_argument("--scalla-iterations", type=int, default=1_000_000)
+    p.add_argument("--scalla_lr", type=float, default=0.5e-4)
+    p.add_argument("--scalla_weight_decay", type=float, default=0.0)
+    p.add_argument("--scalla_n_features", type=int, default=100)
+    p.add_argument("--scalla_optimize_hyper_parameters", action="store_true")
+    p.add_argument("--scalla_prior_opt_iterations", type=int, default=1_000)
+    p.add_argument("--scalla_prior_opt_lr", type=float, default=0.1)
+    p.add_argument("--scalla_zero_crossed_variances", action="store_true")
     # FMGP
     p.add_argument("--fmgp_iterations", type=int, default=50000)
     p.add_argument("--fmgp_lr", type=float, default=1e-4)

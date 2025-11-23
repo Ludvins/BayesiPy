@@ -7,3 +7,5 @@ demos/data
 *.csv
 /examples/MNIST/results
 /examples/MNIST/mnist_resnet18
+/examples/FMNIST/results
+/bayesipy_uncertainty.egg-info
