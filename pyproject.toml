@@ -67,6 +67,7 @@ src = ["bayesipy", "tests"]
 python_version = "3.11"
 
 strict = false
+explicit_package_bases = true
 
 # Very important: avoid tons of 3rd-party stub errors
 ignore_missing_imports = true
@@ -81,4 +82,5 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_return_any = true
 
-mypy_path = ["bayesipy"]
+files = ["bayesipy"]
+mypy_path = ["."]
