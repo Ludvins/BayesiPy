@@ -9,3 +9,4 @@ demos/data
 /examples/MNIST/mnist_resnet18
 /examples/FMNIST/results
 /bayesipy_uncertainty.egg-info
+/bayesipy.egg-info

@@ -13,22 +13,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy project metadata & code
 COPY pyproject.toml README.md ./
-COPY benchmarks benchmarks
-COPY data data
-COPY bayesipy bayesipy
 
 # Upgrade pip
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+
 RUN python -m pip install --upgrade pip
 
-# Install GPU-enabled PyTorch for CUDA 12.1 (adjust version if you like)
-# See https://pytorch.org/get-started/locally for latest command.
-RUN pip install "torch>=2.3.0" --index-url https://download.pytorch.org/whl/cu121
-
 # Install BayesiPy from pyproject.toml (this pulls your runtime deps)
-RUN pip install .[benchmarks]
+RUN pip install .[benchmarks] --find-links https://download.pytorch.org/whl/cu121
+
+COPY benchmarks benchmarks
+COPY bayesipy bayesipy
+
+ENV PYTHONPATH="/workspace:$PYTHONPATH"
 
 # Use SQLite-backed MLflow inside container
-ENV MLFLOW_TRACKING_URI=sqlite:////workspace/mlflow.db
+RUN mkdir -p /workspace/mlflow
+ENV MLFLOW_TRACKING_URI=sqlite:////workspace/mlflow/mlflow.db
 
-# Default command: run the full benchmark sweep script
-CMD ["bash", "benchmarks/regression/run_all_experiments.sh"]
+# Make the script executable and use its shebang directly
+RUN chmod +x benchmarks/regression/run_all_experiments.sh

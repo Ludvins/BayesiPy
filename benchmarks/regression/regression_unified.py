@@ -40,11 +40,7 @@ from torch.utils.data import DataLoader
 
 import mlflow
 
-# Local path
-sys.path.append(".")
-
 # BayesiPy imports
-from bayesipy.laplace import ella
 from bayesipy.utils.datasets import Airline_Dataset, Taxi_Dataset, Year_Dataset
 from bayesipy.utils.metrics import Regression, score
 from bayesipy.utils.pretrained_models import Airline_MLP, Taxi_MLP, Year_MLP
@@ -545,6 +541,7 @@ def main() -> None:
             setattr(args, k, v)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
     dtype = torch.float64
     seed = 2147483647 - int(args.seed)
 

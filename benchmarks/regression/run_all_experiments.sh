@@ -1,5 +1,6 @@
-#!/usr/bin/env bash
-set -euox pipefail
+#!/bin/env bash
+set -eux
+set -o pipefail
 
 # Customize these lists as you like
 DATASETS=(airline year taxi)
@@ -21,8 +22,7 @@ for d in "${DATASETS[@]}"; do
       echo "-----------------------------------------------------"
       echo "Running dataset='${d}' method='${m}' seed='${s}'"
       echo "-----------------------------------------------------"
-
-      python benchmarks/regression/regression_unified_mlflow.py \
+      python benchmarks/regression/regression_unified.py \
         --dataset "${d}" \
         --method "${m}" \
         --seed "${s}" \

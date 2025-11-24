@@ -260,36 +260,39 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /workspace
 
 # Minimal system deps
-RUN apt-get update && apt-get install -y --no-install-recommends     git     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy project metadata & code (pyproject.toml drives installation)
+# Copy project metadata & code
 COPY pyproject.toml README.md ./
-COPY . .
 
 # Upgrade pip
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+
 RUN python -m pip install --upgrade pip
 
-# Install GPU-enabled PyTorch for CUDA 12.1 (adjust if needed)
-# See https://pytorch.org/get-started/locally for the latest command.
-RUN pip install "torch>=2.3.0" --index-url https://download.pytorch.org/whl/cu121
+# Install BayesiPy from pyproject.toml (this pulls your runtime deps)
+RUN pip install .[benchmarks] --find-links https://download.pytorch.org/whl/cu121
 
-# Install BayesiPy from pyproject.toml (this pulls runtime deps)
-RUN pip install .
+COPY benchmarks benchmarks
+COPY bayesipy bayesipy
 
-# Extra deps used only for benchmarks / tracking
-RUN pip install mlflow pandas
+ENV PYTHONPATH="/workspace:$PYTHONPATH"
 
 # Use SQLite-backed MLflow inside container
 ENV MLFLOW_TRACKING_URI=sqlite:////workspace/mlflow.db
 
-# Default command: run the full benchmark sweep script
-CMD ["bash", "benchmarks/regression/run_all_experiments.sh"]
+# Make the script executable and use its shebang directly
+RUN chmod +x benchmarks/regression/run_all_experiments.sh
 ```
 
 The default command assumes you have a script like:
 
 ```text
-benchmarks/regression/run_all_regression_benchmarks.sh
+benchmarks/regression/run_all_experiments.sh
 ```
 
 that loops over datasets / methods / seeds and calls:
@@ -318,10 +321,11 @@ Then:
 mkdir -p benchmarks_output mlruns
 
 docker run --rm --gpus all \ 
-  -v "$(pwd)/benchmarks_output:/workspace/benchmarks/regression/results" \
-  -v "$(pwd)/mlruns:/workspace/mlruns" \
-  -v "$(pwd)/mlflow.db:/workspace/mlflow.db" \
-  bayesipy-benchmarks-regression
+  -v "$(pwd)/mlflow/benchmarks_output:/workspace/benchmarks/regression/results" \
+  -v "$(pwd)/mlflow/mlruns:/workspace/mlruns" \
+  -v "$(pwd)/mlflow/mlflow.db:/workspace/mlflow.db" \
+  bayesipy-benchmarks-regression \
+  /usr/bin/bash benchmarks/regression/run_all_experiments.sh
 ```
 
 This will:
@@ -330,14 +334,15 @@ This will:
 - use the GPU (since `torch.cuda.is_available()` will be `True`),
 - write outputs to:
 
-  - `./benchmarks_output/...` (CSV results, per dataset/method/seed),
-  - `./mlruns/` (MLflow artifacts),
-  - `./mlflow.db` (MLflow tracking database).
+  - `./mlflow/benchmarks_output/...` (CSV results, per dataset/method/seed),
+  - `./mlflow/mlruns/` (MLflow artifacts),
+  - `./mlflow/mlflow.db` (MLflow tracking database).
 
 You can then inspect results locally via:
 
 ```bash
-mlflow ui --backend-store-uri sqlite:///mlflow.db
+export MLFLOW_TRACKING_URI=sqlite:////$(pwd)/mlflow/mlflow.db  
+mlflow ui --backend-store-uri sqlite:///$(pwd)/mlflow/mlflow.db
 ```
 
 and opening <http://127.0.0.1:5000>.
@@ -346,9 +351,9 @@ If you only want to run a single experiment inside Docker, you can override the 
 
 ```bash
 docker run --rm --gpus all \
-  -v "$(pwd)/benchmarks_output:/workspace/benchmarks/regression/results" \
-  -v "$(pwd)/mlruns:/workspace/mlruns" \
-  -v "$(pwd)/mlflow.db:/workspace/mlflow.db" \
+  -v "$(pwd)/mlflow/benchmarks_output:/workspace/benchmarks/regression/results" \
+  -v "$(pwd)/mlflow/mlruns:/workspace/mlruns" \
+  -v "$(pwd)/mlflow/mlflow.db:/workspace/mlflow.db" \
   bayesipy-benchmarks-regression \
   python benchmarks/regression/regression_unified.py \
     --dataset year \

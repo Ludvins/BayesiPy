@@ -3,11 +3,11 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bayesipy-uncertainty"  # pick a unique name if you plan to publish
+name = "bayesipy"  # pick a unique name if you plan to publish
 version = "0.0.1"
 description = "Post-hoc uncertainty estimation methods for pre-trained neural networks."
 readme = "README.md"
-requires-python = ">=3.11.14"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
   { name = "Ludvins", email = "theludvins@gmail.com" },
@@ -30,7 +30,8 @@ dependencies = [
   "properscoring==0.1",
   "scikit-learn>=1.4.0",
   "tqdm>=4.66.1",
-  "Pillow>=9.3.0"
+  "Pillow>=9.3.0",
+  "timm>=0.9.7"
 ]
 
 [project.optional-dependencies]
