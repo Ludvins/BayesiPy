@@ -359,7 +359,7 @@ docker run --rm --gpus all \
     --dataset year \
     --method lla \
     --seed 0 \
-    --batch_size 128 \   
+    --config benchmarks/regression/configs/lla.json \   
     --output benchmarks/regression/results \ 
     --verbose
 ```
