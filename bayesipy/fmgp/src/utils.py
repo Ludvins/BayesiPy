@@ -10,12 +10,18 @@ def compute_length_scale_estimation(loader, n_samples=50000):
     for _ in range(n_samples // B):
         try:
             inputs = next(data_iter)[0]
-            inputs2 = next(data_iter)[0]
         except StopIteration:
             # StopIteration is thrown if dataset ends
             # reinitialize data loader
             data_iter = iter(loader)
             inputs = next(data_iter)[0]
+
+        try:
+            inputs2 = next(data_iter)[0]
+        except StopIteration:
+            # StopIteration is thrown if dataset ends
+            # reinitialize data loader
+            data_iter = iter(loader)
             inputs2 = next(data_iter)[0]
 
         if B == 1:

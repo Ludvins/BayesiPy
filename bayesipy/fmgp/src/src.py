@@ -613,6 +613,12 @@ class FMGP_Base(torch.nn.Module):
 
             self.output_dim = model_output.shape[-1]
             self.num_data = len(train_loader.dataset)
+            
+            if self.num_inducing is not None and self.num_inducing > self.num_data:
+                print(
+                    f"Warning: number of inducing points ({self.num_inducing}) is greater than the number of data points ({self.num_data}). Setting num_inducing to {self.num_data}."
+                )
+                self.num_inducing = self.num_data
 
             if self.initialize_inducing_locations == "random":
                 print("Initializing inducing locations...", end=" ")
