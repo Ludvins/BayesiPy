@@ -30,10 +30,10 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Lint (ruff)
-        run: ruff check src tests
+        run: ruff check bayesipy tests
 
       - name: Type check (mypy)
-        run: mypy src
+        run: mypy bayesipy
 
       - name: Run tests
         run: pytest
