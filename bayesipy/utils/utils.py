@@ -67,7 +67,7 @@ def safe_inverse(A, out=None, jitter=None):
         Aprime = A.clone()
         jitter_prev = 0
         for i in range(10):
-            jitter_new = jitter * (10**i)
+            jitter_new = jitter * (10 ** i)
             Aprime.diagonal(dim1=-2, dim2=-1).add_(jitter_new - jitter_prev)
             jitter_prev = jitter_new
             try:
@@ -110,7 +110,7 @@ def safe_cholesky(A, out=None, jitter=None):
         Aprime = A.clone()
         jitter_prev = 0
         for i in range(10):
-            jitter_new = jitter * (10**i)
+            jitter_new = jitter * (10 ** i)
             Aprime.diagonal(dim1=-2, dim2=-1).add_(jitter_new - jitter_prev)
             jitter_prev = jitter_new
             try:

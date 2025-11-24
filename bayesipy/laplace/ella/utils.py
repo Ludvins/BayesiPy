@@ -28,7 +28,7 @@ def psd_safe_eigen(K):
                 warnings.warn(
                     f"K not p.d., added jitter of {jitter_new} to the diagonal",
                     RuntimeWarning,
-                    stacklevel=2
+                    stacklevel=2,
                 )
             return p, q
         elif jitter == 0:

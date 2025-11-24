@@ -91,7 +91,9 @@ def converter(input, psi_init_range=None, seed=0):
 
         # Initialize bias_psi with a uniform distribution using the generator, if it exists
         if hasattr(output, "bias_psi") and output.bias_psi is not None:
-            output.bias_psi.data.uniform_(psi_init_range[0], psi_init_range[1], generator=generator)
+            output.bias_psi.data.uniform_(
+                psi_init_range[0], psi_init_range[1], generator=generator
+            )
 
         # Delete the original input to save memory
         del input

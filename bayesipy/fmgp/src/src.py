@@ -72,9 +72,11 @@ class FMGP_Base(torch.nn.Module):
         else:
             self.device = device
             self.dtype = dtype
-            
+
         if mc_softmax_samples > 0:
-            print(f"[FMGP] Using MC Softmax with {mc_softmax_samples} samples to compute the probabilities.")
+            print(
+                f"[FMGP] Using MC Softmax with {mc_softmax_samples} samples to compute the probabilities."
+            )
         else:
             print("[FMGP] Not using MC Softmax. Using Softmax approximation.")
         self.mc_softmax_samples = mc_softmax_samples
@@ -105,17 +107,21 @@ class FMGP_Base(torch.nn.Module):
                                  `num_inducing` must be provided"
                 )
             else:
-                self.initialize_inducing_locations : Any = inducing_locations
+                self.initialize_inducing_locations: Any = inducing_locations
                 self.num_inducing = num_inducing
 
         elif isinstance(inducing_locations, (list, np.ndarray)):
             self.initialize_inducing_locations = False
             if isinstance(inducing_locations, list):
                 self.num_inducing = inducing_locations[0].shape[0]
-                self.inducing_locations : Any = torch.nn.ParameterList(
+                self.inducing_locations: Any = torch.nn.ParameterList(
                     [
-                        torch.tensor(inducing_locations[0], device=self.device, dtype=self.dtype),
-                        torch.tensor(inducing_locations[1], device=self.device, dtype=self.dtype),
+                        torch.tensor(
+                            inducing_locations[0], device=self.device, dtype=self.dtype
+                        ),
+                        torch.tensor(
+                            inducing_locations[1], device=self.device, dtype=self.dtype
+                        ),
                     ]
                 )
             else:
@@ -130,7 +136,7 @@ class FMGP_Base(torch.nn.Module):
                 self.inducing_classes = torch.tensor(
                     inducing_classes, device=self.device, dtype=torch.long
                 )
-        
+
         self.seed = 2147483647 - seed
 
     def _initialize_parameters(self):
@@ -202,13 +208,8 @@ class FMGP_Base(torch.nn.Module):
             else:
                 raise ValueError("No network or outputs provided")
 
-        if self.scale is not None:
-            outputs = outputs * self.scale
-        if self.bias is not None:
-            outputs = outputs + self.bias
-            
         return X, outputs
-        
+
     def set_input_shape(self, X):
         if isinstance(X, list):
             X = X[0]
@@ -266,11 +267,15 @@ class FMGP_Base(torch.nn.Module):
             Kxz = Kxz.unsqueeze(-1)
         else:
             indices_expanded = self.inducing_classes.view(1, self.num_inducing, 1, 1)
-            indices_expanded2 = indices_expanded.repeat(batch_size, 1, self.output_dim, 1)
+            indices_expanded2 = indices_expanded.repeat(
+                batch_size, 1, self.output_dim, 1
+            )
 
             Kxz = torch.gather(Kxz, -1, indices_expanded2).squeeze(-1)
             indices_expanded = self.inducing_classes.view(1, self.num_inducing, 1, 1)
-            indices_expanded = indices_expanded.repeat(self.num_inducing, 1, self.output_dim, 1)
+            indices_expanded = indices_expanded.repeat(
+                self.num_inducing, 1, self.output_dim, 1
+            )
 
             Kzz = torch.gather(Kzz, -1, indices_expanded).squeeze(-1)
             indices_expanded2 = self.inducing_classes.view(self.num_inducing, 1, 1)
@@ -331,9 +336,10 @@ class FMGP_Base(torch.nn.Module):
         if self.likelihood == "regression":
             noise_variance = torch.exp(self.log_noise_variance)
 
-            return F_mean * self.y_std + self.y_mean, (
-                F_var.squeeze(-1) + noise_variance
-            ) * self.y_std**2
+            return (
+                F_mean * self.y_std + self.y_mean,
+                (F_var.squeeze(-1) + noise_variance) * self.y_std ** 2,
+            )
 
         else:
             return F_mean, F_var
@@ -426,15 +432,17 @@ class FMGP_Base(torch.nn.Module):
                 / torch.sqrt(2 * torch.pi * variance) ** alpha
             )
 
-            logpdf = gaussian_logdensity(F_mean, F_var.squeeze(-1) + variance / alpha, y)
+            logpdf = gaussian_logdensity(
+                F_mean, F_var.squeeze(-1) + variance / alpha, y
+            )
             logpdf = logpdf + torch.log(C)
             logpdf = logpdf / alpha
         else:
-            
+
             # Handle one-hot encoding
             if y.ndim == 2 and y.shape[1] > 1:
                 y = torch.argmax(y, dim=1, keepdim=True)
-            
+
             if self.mc_softmax_samples > 0:
                 # Monte Carlo approximation of the softmax integral
                 B = F_mean.shape[0]
@@ -445,13 +453,16 @@ class FMGP_Base(torch.nn.Module):
                     generator=self.generator,
                 )
                 L = safe_cholesky(F_var)
-                F_samples = F_mean.unsqueeze(-1) + torch.einsum("bik,bkj->bij", L, samples)
-                                
-                probs = F_samples.softmax(-2)  # Shape (B, output_dim, mc_softmax_samples)
-                
+                F_samples = F_mean.unsqueeze(-1) + torch.einsum(
+                    "bik,bkj->bij", L, samples
+                )
+
+                probs = F_samples.softmax(
+                    -2
+                )  # Shape (B, output_dim, mc_softmax_samples)
+
                 probs = probs.mean(-1) ** alpha  # Shape (B, output_dim)
-                
-                            
+
             else:
                 # Compute scaled logits
                 F = F_mean / torch.sqrt(
@@ -468,8 +479,6 @@ class FMGP_Base(torch.nn.Module):
                     probs.log(), y.to(torch.long).squeeze(-1), reduction="none"
                 )
             )
-            
-            
 
         # # Aggregate on data dimension
         return torch.sum(logpdf)
@@ -496,7 +505,10 @@ class FMGP_Base(torch.nn.Module):
         self.inducing_locations = torch.nn.Parameter(self.inducing_locations)
         if self.likelihood == "classification":
             self.inducing_class = (
-                torch.concatenate(classes, axis=0).flatten().to(self.device).to(torch.long)
+                torch.concatenate(classes, axis=0)
+                .flatten()
+                .to(self.device)
+                .to(torch.long)
             )
 
     @torch.no_grad()
@@ -538,7 +550,9 @@ class FMGP_Base(torch.nn.Module):
                     minit="points",
                     seed=self.seed,
                 )[0]
-                z = z.reshape(self.num_inducing // self.output_dim, *training_data.shape[1:])
+                z = z.reshape(
+                    self.num_inducing // self.output_dim, *training_data.shape[1:]
+                )
                 z = torch.tensor(z).to(self.device).to(self.dtype)
 
                 self.inducing_locations.append(z)
@@ -594,7 +608,7 @@ class FMGP_Base(torch.nn.Module):
             X = data[0]
 
             model_output = self.handle_input(X[:1])[1]
-            
+
             self.set_input_shape(X)
 
             self.output_dim = model_output.shape[-1]
@@ -617,14 +631,15 @@ class FMGP_Base(torch.nn.Module):
                 print("done")
                 print(f"Length scale estimated as {length_scale:.3f}.")
 
-
         self._initialize_parameters()
 
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         if scheduler_gamma is not None:
             if scheduler_steps is None:
                 scheduler_steps = len(train_loader)
-            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=scheduler_gamma)
+            scheduler = torch.optim.lr_scheduler.ExponentialLR(
+                optimizer, gamma=scheduler_gamma
+            )
         elif scheduler_gamma is None:
             scheduler = None
 
@@ -657,7 +672,7 @@ class FMGP_Base(torch.nn.Module):
 
             losses.append(loss.detach().cpu().numpy())
             if val_loader is not None and (i == 0 or (i + 1) % val_steps == 0):
-                stored_metrics.append(score(self, val_loader, metrics_cls))                
+                stored_metrics.append(score(self, val_loader, metrics_cls))
                 print(stored_metrics[-1])
             if verbose:
                 iters.set_postfix(
@@ -692,9 +707,9 @@ class FMGP_Embedding(FMGP_Base):
         dtype=None,
     ):
         if not isinstance(inducing_locations, str):
-            assert isinstance(inducing_locations, list) and len(inducing_locations) == 2, print(
-                "Inducing locations must be a list of two tensors"
-            )
+            assert (
+                isinstance(inducing_locations, list) and len(inducing_locations) == 2
+            ), print("Inducing locations must be a list of two tensors")
 
         if classifier is not None:
             auxiliar_param = list(classifier.parameters())[0]
@@ -790,15 +805,21 @@ class FMGP_Embedding(FMGP_Base):
             training_targets.append(targets)
         training_data = torch.cat(training_data, axis=0)
         training_targets = torch.cat(training_targets, axis=0)
-        
 
         # If needed convert one-hot into numerical
-        if self.likelihood == "classification" and len(training_targets.shape) > 1 and training_targets.shape[1] > 1:
+        if (
+            self.likelihood == "classification"
+            and len(training_targets.shape) > 1
+            and training_targets.shape[1] > 1
+        ):
             training_targets = training_targets.argmax(dim=1)
 
         if self.likelihood == "regression":
             inducing_locations = kmeans2(
-                training_data.detach().cpu().numpy(), self.num_inducing, minit="points", seed=self.seed
+                training_data.detach().cpu().numpy(),
+                self.num_inducing,
+                minit="points",
+                seed=self.seed,
             )[0]
 
             inducing_locations = (
@@ -843,9 +864,13 @@ class FMGP_Embedding(FMGP_Base):
 
                 inducing_locations.append(z)
                 inducing_locations_embedding.append(z2)
-                self.inducing_classes.append(torch.ones(self.num_inducing // self.output_dim) * c)
+                self.inducing_classes.append(
+                    torch.ones(self.num_inducing // self.output_dim) * c
+                )
             inducing_locations = torch.concatenate(inducing_locations)
-            inducing_locations_embedding = torch.concatenate(inducing_locations_embedding)
+            inducing_locations_embedding = torch.concatenate(
+                inducing_locations_embedding
+            )
             self.inducing_locations = torch.nn.ParameterList(
                 [
                     torch.nn.Parameter(inducing_locations),

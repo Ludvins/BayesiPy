@@ -37,7 +37,9 @@ def MNIST_CNN(embedding=False, classifier=False, get_transform=False):
         raise ValueError("Only one of embedding and classifier can be True")
 
     net = CNN(input_channels=1)
-    net.load_state_dict(torch.load(ROOT_DIR + "utils/pretrained_models/weights/mnist_cnn.pt"))
+    net.load_state_dict(
+        torch.load(ROOT_DIR + "utils/pretrained_models/weights/mnist_cnn.pt")
+    )
 
     if embedding:
         net.fc2 = nn.Identity()
@@ -60,7 +62,9 @@ def FMNIST_CNN(embedding=False, classifier=False, get_transform=False):
         raise ValueError("Only one of embedding and classifier can be True")
 
     net = CNN(input_channels=1)
-    net.load_state_dict(torch.load(ROOT_DIR + "utils/pretrained_models/weights/fmnist_cnn.pt"))
+    net.load_state_dict(
+        torch.load(ROOT_DIR + "utils/pretrained_models/weights/fmnist_cnn.pt")
+    )
 
     if embedding:
         net.fc2 = nn.Identity()

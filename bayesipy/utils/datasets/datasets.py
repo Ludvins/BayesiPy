@@ -118,7 +118,9 @@ class Input_Embedding_Output_Dataset(Dataset):
 
 
 class Test_Dataset(Dataset):
-    def __init__(self, inputs, output_dim, targets=None, inputs_mean=0.0, inputs_std=1.0):
+    def __init__(
+        self, inputs, output_dim, targets=None, inputs_mean=0.0, inputs_std=1.0
+    ):
         self.inputs = (inputs - inputs_mean) / inputs_std
         self.targets = targets
         self.n_samples = inputs.shape[0]
@@ -209,7 +211,9 @@ class MNIST_Dataset:
         self.output_dim = 10
         self.rotation_angles = np.arange(10, 181, 10)
 
-        self.train = datasets.MNIST(root=data_base, train=True, download=True, transform=transform)
+        self.train = datasets.MNIST(
+            root=data_base, train=True, download=True, transform=transform
+        )
         self.test = datasets.MNIST(
             root=data_base,
             train=False,
@@ -232,7 +236,9 @@ class MNIST_OOD_Dataset:
         self.classes = 1
         self.output_dim = 1
 
-        self.train = datasets.MNIST(root=data_base, train=True, download=True, transform=transform)
+        self.train = datasets.MNIST(
+            root=data_base, train=True, download=True, transform=transform
+        )
         test = datasets.MNIST(
             root=data_base,
             train=False,
@@ -271,12 +277,16 @@ class MNIST_Rotated_Dataset:
             transform = transforms.ToTensor()
 
         # Concatenate rotation to transform
-        transform = transforms.Compose([transform, transforms.RandomRotation(angle, angle)])
+        transform = transforms.Compose(
+            [transform, transforms.RandomRotation(angle, angle)]
+        )
 
         self.classes = 1
         self.output_dim = 1
 
-        self.train = datasets.MNIST(root=data_base, train=True, download=True, transform=transform)
+        self.train = datasets.MNIST(
+            root=data_base, train=True, download=True, transform=transform
+        )
         self.test = datasets.MNIST(
             root=data_base,
             train=False,
@@ -300,7 +310,9 @@ class CIFAR10_Dataset:
         if transform is None:
             transform = transforms.Compose([transforms.ToTensor()])
 
-        self.train = datasets.CIFAR10(root=data_dir, train=True, download=True, transform=transform)
+        self.train = datasets.CIFAR10(
+            root=data_dir, train=True, download=True, transform=transform
+        )
         self.test = datasets.CIFAR10(
             root=data_dir,
             train=False,
@@ -312,7 +324,9 @@ class CIFAR10_Dataset:
         return self.train, self.test
 
     def validation_split(self, lower=0.5, size=5000):
-        assert size <= len(self.train), f"Size exceeds training set size: {self.len_train()}"
+        assert size <= len(
+            self.train
+        ), f"Size exceeds training set size: {self.len_train()}"
         transform = self.train.transform
 
         transform = transforms.Compose(
@@ -323,7 +337,9 @@ class CIFAR10_Dataset:
             root=self.data_dir, train=True, transform=transform, download=True
         )
 
-        val_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=size, shuffle=False)
+        val_loader = torch.utils.data.DataLoader(
+            valid_dataset, batch_size=size, shuffle=False
+        )
 
         X, y = next(iter(val_loader))
         return torch.utils.data.TensorDataset(X, y)
@@ -338,7 +354,9 @@ class CIFAR10_Rotated_Dataset:
             transform = transforms.ToTensor()
 
         # Concatenate rotation to transform
-        transform = transforms.Compose([transform, transforms.RandomRotation(degrees=angle)])
+        transform = transforms.Compose(
+            [transform, transforms.RandomRotation(degrees=angle)]
+        )
 
         self.train = datasets.CIFAR10(
             root=data_dir,
@@ -412,7 +430,9 @@ class Precomputed_Output_Dataset:
         if transform is None:
             transform = transforms.Compose([transforms.ToTensor()])
 
-        train, test = dataset(transform=transform, data_dir=data_dir).train_test_splits()
+        train, test = dataset(
+            transform=transform, data_dir=data_dir
+        ).train_test_splits()
 
         # Check if file exists
         if not os.path.isfile(data_dir + f"cifar10_{model_name}.npy"):
@@ -433,7 +453,9 @@ class Precomputed_Output_Dataset:
             preds_test = []
             for i in range(0, len(test.inputs), 100):
                 preds_test.append(
-                    model(torch.tensor(test.inputs[i : i + 100]).float()).detach().numpy()
+                    model(torch.tensor(test.inputs[i : i + 100]).float())
+                    .detach()
+                    .numpy()
                 )
             preds_test = np.concatenate(preds_test)
             np.save(data_dir + f"cifar10_test_{model_name}.npy", preds_test)
@@ -462,14 +484,18 @@ class Precomputed_Output_Dataset:
 
 
 class Precomputed_Output_Embedding_Dataset:
-    def __init__(self, model, embedding, model_name, dataset, data_dir="./data/", transform=None):
+    def __init__(
+        self, model, embedding, model_name, dataset, data_dir="./data/", transform=None
+    ):
         self.classes = 10
         self.output_dim = 10
 
         if transform is None:
             transform = transforms.Compose([transforms.ToTensor()])
 
-        train, test = dataset(transform=transform, data_dir=data_dir).train_test_splits()
+        train, test = dataset(
+            transform=transform, data_dir=data_dir
+        ).train_test_splits()
         # Get dtype of a parameter
         DTYPE = next(model.parameters()).dtype
         DEVICE = next(model.parameters()).device
@@ -480,7 +506,11 @@ class Precomputed_Output_Embedding_Dataset:
             loader = DataLoader(train, batch_size=100, shuffle=False)
             for inputs, _ in loader:
                 embedding_train.append(
-                    embedding(inputs.to(DTYPE).to(DEVICE)).detach().cpu().numpy().reshape(100, -1)
+                    embedding(inputs.to(DTYPE).to(DEVICE))
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .reshape(100, -1)
                 )
             embedding_train = np.concatenate(embedding_train)
             np.save(data_dir + f"cifar10_{model_name}_embedding.npy", embedding_train)
@@ -495,13 +525,21 @@ class Precomputed_Output_Embedding_Dataset:
             loader = DataLoader(test, batch_size=100, shuffle=False)
             for inputs, _ in loader:
                 embedding_test.append(
-                    embedding(inputs.to(DTYPE).to(DEVICE)).detach().cpu().numpy().reshape(100, -1)
+                    embedding(inputs.to(DTYPE).to(DEVICE))
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .reshape(100, -1)
                 )
             embedding_test = np.concatenate(embedding_test)
-            np.save(data_dir + f"cifar10_test_{model_name}_embedding.npy", embedding_test)
+            np.save(
+                data_dir + f"cifar10_test_{model_name}_embedding.npy", embedding_test
+            )
         else:
             print("Loading precomputed predictions for CIFAR10")
-            embedding_test = np.load(data_dir + f"cifar10_test_{model_name}_embedding.npy")
+            embedding_test = np.load(
+                data_dir + f"cifar10_test_{model_name}_embedding.npy"
+            )
 
         # Check if file exists
         if not os.path.isfile(data_dir + f"cifar10_{model_name}.npy"):
@@ -510,7 +548,11 @@ class Precomputed_Output_Embedding_Dataset:
             loader = DataLoader(train, batch_size=100, shuffle=False)
             for inputs, _ in loader:
                 preds.append(
-                    model(inputs.to(DTYPE).to(DEVICE)).detach().cpu().numpy().reshape(100, -1)
+                    model(inputs.to(DTYPE).to(DEVICE))
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .reshape(100, -1)
                 )
             preds = np.concatenate(preds)
             np.save(data_dir + f"cifar10_{model_name}.npy", preds)
@@ -525,7 +567,11 @@ class Precomputed_Output_Embedding_Dataset:
             loader = DataLoader(test, batch_size=100, shuffle=False)
             for inputs, _ in loader:
                 preds_test.append(
-                    model(inputs.to(DTYPE).to(DEVICE)).detach().cpu().numpy().reshape(100, -1)
+                    model(inputs.to(DTYPE).to(DEVICE))
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .reshape(100, -1)
                 )
             preds_test = np.concatenate(preds_test)
             np.save(data_dir + f"cifar10_test_{model_name}.npy", preds_test)
@@ -609,7 +655,9 @@ class Airline_Dataset:
         X = (X - self.X_mean) / self.X_std
         Y[: self.n_train] = (Y[: self.n_train] - self.y_mean) / self.y_std
 
-        self.train = Training_Dataset(X[: self.n_train], Y[: self.n_train], self.output_dim)
+        self.train = Training_Dataset(
+            X[: self.n_train], Y[: self.n_train], self.output_dim
+        )
         self.input_dim = X.shape[1]
 
         self.val = Test_Dataset(
@@ -642,7 +690,9 @@ class Year_Dataset:
                 with ZipFile(BytesIO(zipresp.read())) as zfile:
                     zfile.extractall(data_dir)
 
-        data = pd.read_csv(data_dir + "YearPredictionMSD.txt", header=None, delimiter=",").values
+        data = pd.read_csv(
+            data_dir + "YearPredictionMSD.txt", header=None, delimiter=","
+        ).values
 
         self.len_data = data.shape[0]
 
@@ -784,13 +834,17 @@ class Imagenet_Dataset:
         self.train = torchvision.datasets.ImageNet(
             root=data_dir, split="train", transform=transform
         )
-        self.test = torchvision.datasets.ImageNet(root=data_dir, split="val", transform=transform)
+        self.test = torchvision.datasets.ImageNet(
+            root=data_dir, split="val", transform=transform
+        )
 
     def train_test_splits(self):
         return self.train, self.test
 
     def validation_split(self, lower=0.5, size=5000):
-        assert size <= len(self.train), f"Size exceeds training set size: {self.len_train()}"
+        assert size <= len(
+            self.train
+        ), f"Size exceeds training set size: {self.len_train()}"
         transform = self.train.transform
 
         da = transforms.Compose(
@@ -804,14 +858,18 @@ class Imagenet_Dataset:
             root=self.data_dir, split="train", transform=da
         )
 
-        val_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=size, shuffle=False)
+        val_loader = torch.utils.data.DataLoader(
+            valid_dataset, batch_size=size, shuffle=False
+        )
 
         X, y = next(iter(val_loader))
         X = transform(X)
         return torch.utils.data.TensorDataset(X, y)
 
     def validation_split_ella(self, lower=0.5, size=12000):
-        assert size <= len(self.train), f"Size exceeds training set size: {self.len_train()}"
+        assert size <= len(
+            self.train
+        ), f"Size exceeds training set size: {self.len_train()}"
         transform = create_transform(
             input_size=224,
             scale=(0.08, 0.1),
@@ -830,7 +888,9 @@ class Imagenet_Dataset:
             root=self.data_dir, split="train", transform=transform
         )
 
-        val_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=size, shuffle=False)
+        val_loader = torch.utils.data.DataLoader(
+            valid_dataset, batch_size=size, shuffle=False
+        )
 
         X, y = next(iter(val_loader))
         return torch.utils.data.TensorDataset(X, y)
@@ -847,12 +907,16 @@ class Rotated_Imagenet_Dataset:
         if transform is None:
             transform = transforms.Compose([transforms.ToTensor()])
 
-        transform = transforms.Compose([transform, transforms.RandomRotation(degrees=angle)])
+        transform = transforms.Compose(
+            [transform, transforms.RandomRotation(degrees=angle)]
+        )
 
         self.train = torchvision.datasets.ImageNet(
             root=data_dir, split="train", transform=transform
         )
-        self.test = torchvision.datasets.ImageNet(root=data_dir, split="val", transform=transform)
+        self.test = torchvision.datasets.ImageNet(
+            root=data_dir, split="val", transform=transform
+        )
 
     def train_test_splits(self):
         return self.train, self.test

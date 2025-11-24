@@ -89,7 +89,9 @@ class _BayesBatchNormMF(Module):
         if self.track_running_stats:
             self.register_buffer("running_mean", torch.zeros(num_features))
             self.register_buffer("running_var", torch.ones(num_features))
-            self.register_buffer("num_batches_tracked", torch.tensor(0, dtype=torch.long))
+            self.register_buffer(
+                "num_batches_tracked", torch.tensor(0, dtype=torch.long)
+            )
         else:
             self.register_parameter("running_mean", None)
             self.register_parameter("running_var", None)
@@ -148,7 +150,9 @@ class _BayesBatchNormMF(Module):
             if self.num_batches_tracked is not None:
                 self.num_batches_tracked += 1
                 if self.momentum is None:
-                    self.exponential_average_factor = 1.0 / float(self.num_batches_tracked)
+                    self.exponential_average_factor = 1.0 / float(
+                        self.num_batches_tracked
+                    )
                 else:
                     self.exponential_average_factor = self.momentum
 
@@ -182,7 +186,9 @@ class _BayesBatchNormMF(Module):
             bias = self.bias_mu.unsqueeze(0)
 
             if out.dim() == 4:
-                out = torch.addcmul(bias[:, :, None, None], weight[:, :, None, None], out)
+                out = torch.addcmul(
+                    bias[:, :, None, None], weight[:, :, None, None], out
+                )
             elif out.dim() == 2:
                 out = torch.addcmul(bias, weight, out)
             else:
@@ -218,7 +224,11 @@ class _BayesBatchNormMF(Module):
             bs = input.shape[0]
             weight = self.mul_exp_add(
                 torch.normal(
-                    0, 1, size=(bs, *self.weight_size), device=input.device, dtype=input.dtype
+                    0,
+                    1,
+                    size=(bs, *self.weight_size),
+                    device=input.device,
+                    dtype=input.dtype,
                 ),  # Generate random perturbations
                 self.weight_psi,
                 self.weight_mu,
@@ -226,13 +236,19 @@ class _BayesBatchNormMF(Module):
 
             bias = self.mul_exp_add(
                 torch.normal(
-                    0, 1, size=(bs, *self.bias_size), device=input.device, dtype=input.dtype
+                    0,
+                    1,
+                    size=(bs, *self.bias_size),
+                    device=input.device,
+                    dtype=input.dtype,
                 ),  # Generate random perturbations
                 self.bias_psi,
                 self.bias_mu,
             )
             if out.dim() == 4:
-                out = torch.addcmul(bias[:, :, None, None], weight[:, :, None, None], out)
+                out = torch.addcmul(
+                    bias[:, :, None, None], weight[:, :, None, None], out
+                )
             elif out.dim() == 2:
                 out = torch.addcmul(bias, weight, out)
             else:

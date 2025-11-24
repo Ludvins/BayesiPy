@@ -137,7 +137,9 @@ class BackPackInterface(CurvatureInterface):
                     # Gather the desired output for each input
                     o = torch.gather(out, 1, c.unsqueeze(-1)).sum()
                     # Compute Backward pass
-                    o.backward(create_graph=enable_back_prop, retain_graph=enable_back_prop)
+                    o.backward(
+                        create_graph=enable_back_prop, retain_graph=enable_back_prop
+                    )
                     # Initialize auxiliar array
                     to_cat = []
                     # Loop over model parameters, retrieve their gradient and delete it

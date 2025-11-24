@@ -43,7 +43,9 @@ def Laplace(
         chosen subclass of ParametricLaplace instantiated with additional arguments
     """
     if subset_of_weights == "subnetwork" and hessian_structure not in ["full", "diag"]:
-        raise ValueError("Subnetwork Laplace requires a full or diagonal Hessian approximation!")
+        raise ValueError(
+            "Subnetwork Laplace requires a full or diagonal Hessian approximation!"
+        )
 
     laplace_map = {
         subclass._key: subclass
@@ -56,22 +58,22 @@ def Laplace(
 
     # Set device and dtype attributes
     p = next(model.parameters())
-    instance.device = p.device # type: ignore[attr-defined]
-    instance.dtype = p.dtype # type: ignore[attr-defined]
+    instance.device = p.device  # type: ignore[attr-defined]
+    instance.dtype = p.dtype  # type: ignore[attr-defined]
 
     # Create predict method that computes glm_predictive and scales the output
     # using the provided normalization constants.
     def predict(self, X):
         F_mean, F_var = self._glm_predictive_distribution(X)
         if self.likelihood == "regression":
-            noise_variance = self.sigma_noise**2
+            noise_variance = self.sigma_noise ** 2
             F_var = F_var.squeeze(-1) + noise_variance
         y_std_t = torch.tensor(y_std).to(F_mean.device).to(F_mean.dtype)
         y_mean_t = torch.tensor(y_mean).to(F_mean.device).to(F_mean.dtype)
-        return F_mean * y_std_t + y_mean_t, F_var * y_std_t**2
+        return F_mean * y_std_t + y_mean_t, F_var * y_std_t ** 2
 
     # Set that method to the instance
-    instance.predict = predict.__get__(instance) # type: ignore[attr-defined]
+    instance.predict = predict.__get__(instance)  # type: ignore[attr-defined]
     return instance
 
 

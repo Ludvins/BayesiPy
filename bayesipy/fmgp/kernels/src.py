@@ -21,7 +21,9 @@ class SquaredExponential(torch.nn.Module):
 
         self.embedding = embedding
 
-        self.initial_amplitude = torch.tensor(initial_amplitude).to(self.device).to(self.dtype)
+        self.initial_amplitude = (
+            torch.tensor(initial_amplitude).to(self.device).to(self.dtype)
+        )
         self.initial_length_scale = (
             torch.tensor(initial_length_scale).to(self.device).to(self.dtype)
         )
@@ -71,7 +73,7 @@ class SquaredExponential(torch.nn.Module):
         # Scale the input features using the length scale
         x1 = x1 / torch.exp(self.log_input_length_scale)
         x2 = x2 / torch.exp(self.log_input_length_scale)
-        
+
         B1 = x1.shape[0]
         B2 = x2.shape[0]
 
@@ -94,7 +96,6 @@ class SquaredExponential(torch.nn.Module):
             return kernel.unsqueeze(-1).unsqueeze(-1) * outputs_kernel
 
         return kernel
-    
 
     def compute_output_kernel(self):
         if self.n_outputs == 1:
@@ -107,6 +108,7 @@ class SquaredExponential(torch.nn.Module):
 
         return L @ L.T
 
+
 class DotProduct(torch.nn.Module):
     def __init__(
         self,
@@ -116,14 +118,14 @@ class DotProduct(torch.nn.Module):
         n_outputs,
         device,
         dtype,
-        embedding = None,
+        embedding=None,
     ):
         super().__init__()
         self.device = device
         self.dtype = dtype
         self.n_features = n_features
         self.n_outputs = n_outputs
-        
+
         self.embedding = embedding
 
         self.initial_amplitude = (
@@ -195,8 +197,6 @@ class DotProduct(torch.nn.Module):
 
         return kernel
 
-    
-
     def compute_output_kernel(self):
         if self.n_outputs == 1:
             raise ValueError("Kernel with a single output dimension has no output fun")
@@ -207,6 +207,7 @@ class DotProduct(torch.nn.Module):
         L[li, lj] = self.output_cholesky
 
         return L @ L.T
+
 
 class LastLayerNTK_SquaredExponential(SquaredExponential):
     def __init__(

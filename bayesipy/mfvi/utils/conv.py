@@ -122,7 +122,10 @@ class _BayesConvNdMF(Module):
         str
             String representation of the layer.
         """
-        s = "{in_channels}, {out_channels}, kernel_size={kernel_size}" ", stride={stride}"
+        s = (
+            "{in_channels}, {out_channels}, kernel_size={kernel_size}"
+            ", stride={stride}"
+        )
         s += ", padding={padding}"
         s += ", dilation={dilation}"
         s += ", groups={groups}"
@@ -285,7 +288,11 @@ class BayesConv2dMF(_BayesConvNdMF):
         torch.Tensor
             Output tensor after applying the convolution with reparameterization.
         """
-        weight = torch.randn_like(self.weight_mu).mul_(self.weight_psi.exp()).add_(self.weight_mu)
+        weight = (
+            torch.randn_like(self.weight_mu)
+            .mul_(self.weight_psi.exp())
+            .add_(self.weight_mu)
+        )
         out = F.conv2d(
             input,
             weight=weight,
@@ -297,7 +304,11 @@ class BayesConv2dMF(_BayesConvNdMF):
         )
 
         if self.bias:
-            bias = torch.randn_like(self.bias_mu).mul_(self.bias_psi.exp()).add_(self.bias_mu)
+            bias = (
+                torch.randn_like(self.bias_mu)
+                .mul_(self.bias_psi.exp())
+                .add_(self.bias_mu)
+            )
 
             return out + bias
 
@@ -331,7 +342,11 @@ class BayesConv2dMF(_BayesConvNdMF):
         )
 
         # Sampling perturbation signs
-        sign_input = torch.empty(x.size(0), x.size(1), 1, 1, device=x.device).uniform_(-1, 1).sign()
+        sign_input = (
+            torch.empty(x.size(0), x.size(1), 1, 1, device=x.device)
+            .uniform_(-1, 1)
+            .sign()
+        )
         sign_output = (
             torch.empty(outputs.size(0), outputs.size(1), 1, 1, device=x.device)
             .uniform_(-1, 1)

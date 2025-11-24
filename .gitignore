@@ -10,3 +10,4 @@ demos/data
 /examples/FMNIST/results
 /bayesipy_uncertainty.egg-info
 /bayesipy.egg-info
+/mlflow

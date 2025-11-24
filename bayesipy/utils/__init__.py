@@ -5,4 +5,9 @@ from .utils import (
     safe_inverse,
 )
 
-__all__ = ["safe_cholesky", "safe_inverse", "gaussian_logdensity", "assert_reproducibility"]
+__all__ = [
+    "safe_cholesky",
+    "safe_inverse",
+    "gaussian_logdensity",
+    "assert_reproducibility",
+]

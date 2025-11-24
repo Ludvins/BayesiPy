@@ -163,9 +163,17 @@ class BayesLinearMF(Module):
         torch.Tensor
             Output tensor after applying the linear transformation with Monte Carlo sampling.
         """
-        weight = torch.randn_like(self.weight_mu).mul_(self.weight_psi.exp()).add_(self.weight_mu)
+        weight = (
+            torch.randn_like(self.weight_mu)
+            .mul_(self.weight_psi.exp())
+            .add_(self.weight_mu)
+        )
         if self.bias:
-            bias = torch.randn_like(self.bias_mu).mul_(self.bias_psi.exp()).add_(self.bias_mu)
+            bias = (
+                torch.randn_like(self.bias_mu)
+                .mul_(self.bias_psi.exp())
+                .add_(self.bias_mu)
+            )
         else:
             bias = None
         return F.linear(x, weight, bias)
@@ -190,7 +198,11 @@ class BayesLinearMF(Module):
         sign_output = torch.empty_like(outputs).uniform_(-1, 1).sign()
         # Getting perturbation weights
         delta_kernel = torch.randn_like(self.weight_psi).mul(self.weight_psi.exp())
-        delta_bias = torch.randn_like(self.bias_psi).mul(self.bias_psi.exp()) if self.bias else None
+        delta_bias = (
+            torch.randn_like(self.bias_psi).mul(self.bias_psi.exp())
+            if self.bias
+            else None
+        )
         # Perturbed feedforward
         perturbed_outputs = F.linear(x * sign_input, delta_kernel, delta_bias)
         # Add perturbed outputs

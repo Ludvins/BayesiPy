@@ -86,7 +86,9 @@ class Regression(Metrics):
         """
         super().update(y, Fmean, Fvar)
         # For regression NLL is Gaussian log density.
-        self.nll -= torch.sum(gaussian_logdensity(Fmean.squeeze(), Fvar.squeeze(), y.squeeze()))
+        self.nll -= torch.sum(
+            gaussian_logdensity(Fmean.squeeze(), Fvar.squeeze(), y.squeeze())
+        )
         self.mse += torch.nn.functional.mse_loss(Fmean, y, reduction="sum")
 
         # Compute standard deviation instead of variance.
@@ -139,7 +141,9 @@ class Regression(Metrics):
         return torch.sum(inside)
 
     def compute_crps(self, y, mean_pred, std_pred):
-        crps = crps_gaussian(y.detach().cpu(), mean_pred.detach().cpu(), std_pred.detach().cpu())
+        crps = crps_gaussian(
+            y.detach().cpu(), mean_pred.detach().cpu(), std_pred.detach().cpu()
+        )
         return np.sum(crps)
 
     def get_dict(self):
@@ -233,7 +237,9 @@ class ECE(torch.nn.Module):
 
         for bin_lower, bin_upper in zip(self.bin_lowers, self.bin_uppers, strict=True):
             # Calculated |confidence - accuracy| in each bin
-            in_bin = self.confidences.gt(bin_lower.item()) * self.confidences.le(bin_upper.item())
+            in_bin = self.confidences.gt(bin_lower.item()) * self.confidences.le(
+                bin_upper.item()
+            )
             prop_in_bin = in_bin.float().mean()
             if prop_in_bin.item() > 0:
                 accuracy_in_bin = accuracies[in_bin].float().mean()
@@ -300,7 +306,9 @@ class SoftmaxClassification(Metrics):
         # Compute Probabilities
         probs = F.softmax(-1)
         # Compute one_hot encoding of the targets
-        oh_on = torch.nn.functional.one_hot(y.to(torch.long).squeeze(), num_classes=probs.shape[-1])
+        oh_on = torch.nn.functional.one_hot(
+            y.to(torch.long).squeeze(), num_classes=probs.shape[-1]
+        )
         # Compute distance between probabilities and one hot encoding
         dist = (probs - oh_on) ** 2
         return torch.sum(dist)
@@ -309,7 +317,9 @@ class SoftmaxClassification(Metrics):
         return (torch.argmax(F, -1) == y.flatten()).float().sum()
 
     def compute_nll(self, y, F):
-        return torch.nn.functional.cross_entropy(F, y.to(torch.long).squeeze(-1), reduction="sum")
+        return torch.nn.functional.cross_entropy(
+            F, y.to(torch.long).squeeze(-1), reduction="sum"
+        )
 
     def get_dict(self):
         return {
@@ -364,7 +374,9 @@ class SoftmaxClassificationSamples(Metrics):
         # Compute Probabilities
         probs = F.softmax(-1)
         # Compute one_hot encoding of the targets
-        oh_on = torch.nn.functional.one_hot(y.to(torch.long).squeeze(), num_classes=probs.shape[-1])
+        oh_on = torch.nn.functional.one_hot(
+            y.to(torch.long).squeeze(), num_classes=probs.shape[-1]
+        )
         # Compute distance between probabilities and one hot encoding
         dist = (probs - oh_on) ** 2
         return torch.sum(dist)
@@ -373,7 +385,9 @@ class SoftmaxClassificationSamples(Metrics):
         return (torch.argmax(F, -1) == y.flatten()).float().sum()
 
     def compute_nll(self, y, F):
-        return torch.nn.functional.cross_entropy(F, y.to(torch.long).squeeze(-1), reduction="sum")
+        return torch.nn.functional.cross_entropy(
+            F, y.to(torch.long).squeeze(-1), reduction="sum"
+        )
 
     def get_dict(self):
         return {
@@ -531,8 +545,7 @@ def score(model, generator, metrics_cls, verbose=False):
             targets = targets.to(model.device).to(model.dtype)
             Fmean, Fvar = model.predict(inputs)
             metrics.update(targets, Fmean, Fvar)
-                
-            
+
     # Return metrics as a dictionary
     return metrics.get_dict()
 

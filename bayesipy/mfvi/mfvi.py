@@ -12,7 +12,17 @@ from .utils.linear import BayesLinearMF
 
 
 class MFVI(torch.nn.Module):
-    def __init__(self,  model,likelihood, prior_precision, n_samples, seed, noise_variance = None, y_mean=0, y_std=1) -> None:
+    def __init__(
+        self,
+        model,
+        likelihood,
+        prior_precision,
+        n_samples,
+        seed,
+        noise_variance=None,
+        y_mean=0,
+        y_std=1,
+    ) -> None:
         super(MFVI, self).__init__()
 
         # Get a parameter
@@ -23,12 +33,18 @@ class MFVI(torch.nn.Module):
         self.dtype = p.dtype
 
         # Store model and parameters
-        self.mfvi_model = converter(model.cpu(), seed=seed).to(self.device).to(self.dtype)
+        self.mfvi_model = (
+            converter(model.cpu(), seed=seed).to(self.device).to(self.dtype)
+        )
         self.prior_precision = prior_precision
         self.n_samples = n_samples
         self.likelihood = likelihood
         if self.likelihood == "regression":
-            self.log_noise = torch.nn.Parameter(torch.tensor(0.5*np.log(noise_variance), device=self.device, dtype=self.dtype))
+            self.log_noise = torch.nn.Parameter(
+                torch.tensor(
+                    0.5 * np.log(noise_variance), device=self.device, dtype=self.dtype
+                )
+            )
         self.y_mean = y_mean
         self.y_std = y_std
 
@@ -49,7 +65,9 @@ class MFVI(torch.nn.Module):
     def _prior_regularization(self):
         for name, param in self.mfvi_model.named_parameters():
             if "_psi" in name:
-                param.grad.data.add_((param * 2).exp(), alpha=self.alpha).sub_(1.0 / self.num_data)
+                param.grad.data.add_((param * 2).exp(), alpha=self.alpha).sub_(
+                    1.0 / self.num_data
+                )
             else:
                 param.grad.data.add_(param, alpha=self.alpha)
 
@@ -58,10 +76,20 @@ class MFVI(torch.nn.Module):
             return F.cross_entropy(y_pred, targets)
         elif self.likelihood == "regression":
             noise = self.log_noise.exp()
-            gaussian_log_likelihood = gaussian_logdensity(y_pred, noise**2, targets)
+            gaussian_log_likelihood = gaussian_logdensity(y_pred, noise ** 2, targets)
             return -gaussian_log_likelihood.mean()
 
-    def fit(self, train_loader, iterations, mean_lr = 1e-4, var_lr = 1e-3, mean_weight_decay = 2e-4, var_weight_decay = 0, momentum=0.9, verbose=False):
+    def fit(
+        self,
+        train_loader,
+        iterations,
+        mean_lr=1e-4,
+        var_lr=1e-3,
+        mean_weight_decay=2e-4,
+        var_weight_decay=0,
+        momentum=0.9,
+        verbose=False,
+    ):
         self.train()
 
         self.num_data = len(train_loader.dataset)
@@ -118,7 +146,7 @@ class MFVI(torch.nn.Module):
 
             if self.likelihood == "regression":
                 optimizer_adam.step()
-            
+
             optimizer.step()
         return losses
 
@@ -134,9 +162,8 @@ class MFVI(torch.nn.Module):
         elif self.likelihood == "regression":
             # In this case, return mean and variance of Gaussian mixture of samples
             mean = ret.mean(0) * self.y_std + self.y_mean
-            variance = ret.var(0) + self.log_noise.exp()**2 * self.y_std**2
+            variance = ret.var(0) + self.log_noise.exp() ** 2 * self.y_std ** 2
             return mean, variance
-            
 
     def sample(self, x):
         self.mfvi_model.eval()

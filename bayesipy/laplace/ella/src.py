@@ -127,7 +127,9 @@ class ELLA(torch.nn.Module):
         self.n_outputs = out.shape[-1]
 
         if balanced:
-            xs, ys = subsample_balanced(train_loader, self.n_outputs, self.M, self.device, True)
+            xs, ys = subsample_balanced(
+                train_loader, self.n_outputs, self.M, self.device, True
+            )
             subsample_dataset = TensorDataset(xs, ys)
             sub_sample_loader = DataLoader(
                 dataset=subsample_dataset,
@@ -139,19 +141,23 @@ class ELLA(torch.nn.Module):
             sub_sample_loader = DataLoader(
                 dataset=train_loader.dataset,
                 batch_size=train_loader.batch_size,
-                sampler=SoDSampler(N=len(train_loader.dataset), M=self.M, seed=self.seed),
+                sampler=SoDSampler(
+                    N=len(train_loader.dataset), M=self.M, seed=self.seed
+                ),
                 shuffle=False,
             )
         # Bould the dual parameters list
         self._build_dual_params_list(sub_sample_loader)
-        
+
         # Initialize feature product matrix
         self.subset_feature_product = torch.zeros(self.K, self.K).to(
             device=self.device, dtype=self.dtype, non_blocking=True
         )
 
         train_loader = (
-            tqdm(train_loader, desc="Iterating Training Data") if verbose else train_loader
+            tqdm(train_loader, desc="Iterating Training Data")
+            if verbose
+            else train_loader
         )
 
         if val_loader is not None:
@@ -177,7 +183,9 @@ class ELLA(torch.nn.Module):
                 Delta_x = torch.ones(1, 1, device=self.device, dtype=self.dtype)
                 Delta_x = Delta_x[None, :, :].expand(x.shape[0], -1, -1)
             # Update the feature product matrix
-            self.subset_feature_product += torch.einsum("bok,boj,bjl->kl", Psi_x, Delta_x, Psi_x)
+            self.subset_feature_product += torch.einsum(
+                "bok,boj,bjl->kl", Psi_x, Delta_x, Psi_x
+            )
 
             if val_loader is not None and (i == 0 or (i + 1) % val_steps == 0):
                 if update_prior_precision:
@@ -192,7 +200,9 @@ class ELLA(torch.nn.Module):
 
                 # Compute metrics
                 if metrics_cls is not None:
-                    stored_metrics.append(score(self, val_loader, metrics_cls, verbose=False))
+                    stored_metrics.append(
+                        score(self, val_loader, metrics_cls, verbose=False)
+                    )
                 # If val NLL improves store it, break otherwise
                 if val_score < best_score:
                     best_score = val_score
@@ -228,17 +238,19 @@ class ELLA(torch.nn.Module):
         for x, y in val_loader:
             x = x.to(self.device).to(self.dtype)
             y = y.to(self.device)
-            
+
             # Handle one-hot encoding for classification
             if self.likelihood == "classification" and y.shape[-1] > 1:
                 y = y.argmax(-1, keepdim=True)
-            
+
             # Compute predictive distribution
             F_mean, F_var = self.predict(x)
 
             # For regression compute the likelihood in closed form
             if self.likelihood == "regression":
-                nll += -gaussian_logdensity(F_mean.squeeze(), F_var.squeeze(), y.squeeze()).sum()
+                nll += -gaussian_logdensity(
+                    F_mean.squeeze(), F_var.squeeze(), y.squeeze()
+                ).sum()
 
             # For classification, use MonteCarlo estimation.
             else:
@@ -469,7 +481,7 @@ class ELLA(torch.nn.Module):
         """Build the approximate Generalized Gauss-Newton matrix."""
         # For regression, the likelihood hessian was not considered during training
         if self.likelihood == "regression":
-            G = self.subset_feature_product / (self._sigma_noise**2)
+            G = self.subset_feature_product / (self._sigma_noise ** 2)
         else:
             G = self.subset_feature_product
         # Add the prior precision to the diagonal
@@ -525,8 +537,8 @@ class ELLA(torch.nn.Module):
         F_mean, F_var = self(x)
         if self.likelihood == "regression":
             F_var = F_var.squeeze(-1)
-            F_var += self._sigma_noise**2
-        return F_mean * self.y_std + self.y_mean, F_var * self.y_std**2
+            F_var += self._sigma_noise ** 2
+        return F_mean * self.y_std + self.y_mean, F_var * self.y_std ** 2
 
     @property
     def prior_precision(self):

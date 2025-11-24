@@ -46,7 +46,9 @@ from bayesipy import ROOT_DIR
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False
+    )
 
 
 def conv1x1(in_planes, out_planes, stride=1):
@@ -140,7 +142,9 @@ class CifarResNet(nn.Module):
 
 
 def CIFAR10_Resnet(model_name, embedding=False, classifier=False, get_transform=False):
-    assert not (embedding and classifier), "Only one of embedding and classifier can be True"
+    assert not (
+        embedding and classifier
+    ), "Only one of embedding and classifier can be True"
     assert model_name in [
         "resnet20",
         "resnet32",
@@ -166,7 +170,9 @@ def CIFAR10_Resnet(model_name, embedding=False, classifier=False, get_transform=
     }
     model = CifarResNet(BasicBlock, layers[model_name])
 
-    state_dict = torch.load(ROOT_DIR + f"utils/pretrained_models/weights/cifar10_{model_name}.pt")
+    state_dict = torch.load(
+        ROOT_DIR + f"utils/pretrained_models/weights/cifar10_{model_name}.pt"
+    )
     model.load_state_dict(state_dict)
 
     if embedding:

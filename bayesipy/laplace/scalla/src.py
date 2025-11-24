@@ -68,7 +68,9 @@ class ScaLLA:
         # Create a vector of parameters and store it. This will serve as theta_MAP for
         # the Laplace approximation.
         self.params = [p for p in self.model.parameters()]
-        self.mean = parameters_to_vector(self.params)  # The MAP estimate is stored here.
+        self.mean = parameters_to_vector(
+            self.params
+        )  # The MAP estimate is stored here.
 
         # -- Determine device and dtype from the primary model parameters --
         self.device = next(iter(self.params)).device
@@ -78,14 +80,17 @@ class ScaLLA:
 
         # -- Likelihood configuration --
         self.likelihood = likelihood
-        assert self.likelihood in ["regression", "classification"], (
-            "likelihood must be either 'regression' or 'classification'."
-        )
+        assert self.likelihood in [
+            "regression",
+            "classification",
+        ], "likelihood must be either 'regression' or 'classification'."
 
         # -- Prior & noise parameters --
         self._prior_precision = prior_precision
         self._sigma_noise = sigma_noise
-        self.prior_mean: float | torch.Tensor = 0  # The prior mean is assumed 0 by default.
+        self.prior_mean: float | torch.Tensor = (
+            0  # The prior mean is assumed 0 by default.
+        )
 
         # -- Output normalization parameters (for regression) --
         self.y_mean = torch.tensor(y_mean).to(self.device).to(self.dtype)
@@ -96,14 +101,16 @@ class ScaLLA:
         self.generator = torch.Generator(device=self.device).manual_seed(self.seed)
 
         # -- Posterior quantities (to be computed after fitting) --
-        self._posterior_scale: Optional[torch.Tensor] = None  # Cholesky factor of posterior covariance
-        self.H : Optional[torch.Tensor] = None                 # Approximate Hessian (GGN) placeholder
-        self.loss = 0                 # Training loss placeholder for use in the log-likelihood
+        self._posterior_scale: Optional[
+            torch.Tensor
+        ] = None  # Cholesky factor of posterior covariance
+        self.H: Optional[torch.Tensor] = None  # Approximate Hessian (GGN) placeholder
+        self.loss = 0  # Training loss placeholder for use in the log-likelihood
 
         # -- Additional attributes --
-        self.n_outputs : Optional[int] = None
+        self.n_outputs: Optional[int] = None
         self.n_features: Optional[int] = None
-        self.num_train : Optional[int] = None
+        self.num_train: Optional[int] = None
 
     def fit(
         self,
@@ -178,38 +185,43 @@ class ScaLLA:
         X = data[0]
         total_size = len(cast(Sized, train_loader.dataset))
         self.num_train = total_size
-        
+
         self.feature_model.eval()
 
         # Attempt a forward pass for shape initialization.
         try:
             out = self.model(X[:1].to(self.device).to(self.dtype))
-            self.n_features = self.feature_model(X[:1].to(self.device).to(self.dtype)).shape[-2]
+            self.n_features = self.feature_model(
+                X[:1].to(self.device).to(self.dtype)
+            ).shape[-2]
         except (TypeError, AttributeError):
             # For some models that may not allow slicing with [:1].
             out = self.model(X.to(self.device).to(self.dtype))
-            self.n_features = self.feature_model(X.to(self.device).to(self.dtype)).shape[-2]
-            
+            self.n_features = self.feature_model(
+                X.to(self.device).to(self.dtype)
+            ).shape[-2]
+
         self.feature_model.train()
-            
+
         self.n_outputs = out.shape[-1]
 
         # Reset loss and Hessian buffer.
         self.loss = 0
-        self.H = torch.zeros(self.n_features, self.n_features, 
-                             device=self.device,
-                             dtype=self.dtype)
+        self.H = torch.zeros(
+            self.n_features, self.n_features, device=self.device, dtype=self.dtype
+        )
 
         # Optimizer for the secondary model.
-        optimizer = torch.optim.Adam(self.feature_model.parameters(), 
-                                     lr=1e-4 if lr is None else lr)
+        optimizer = torch.optim.Adam(
+            self.feature_model.parameters(), lr=1e-4 if lr is None else lr
+        )
         # Create iterators for the training loader and optional context loader.
         train_iter = iter(train_loader)
         if context_points_loader is not None:
             context_points_iter = iter(context_points_loader)
 
         losses = []
-        losses_exact : list[float] = []   
+        losses_exact: list[float] = []
 
         # Make sure the primary model's parameters require grad during JVP calculations.
         for p in self.model.parameters():
@@ -256,13 +268,12 @@ class ScaLLA:
             # in-place scaling of the selected diagonal blocks
             B = x.shape[0] // 2
             if context_points_loader is not None and zero_crossed_variances:
-                K[:B, B:] *= 0.0    # broadcasts over the two trailing dims
-                K[B:, :B] *= 0.0    # broadcasts over the two trailing dims
-            
+                K[:B, B:] *= 0.0  # broadcasts over the two trailing dims
+                K[B:, :B] *= 0.0  # broadcasts over the two trailing dims
+
             # Core loss: kernel norm difference between primary model GGN proxy and feature_model features.
-            loss = torch.mean((K - Q)**2)
-            
-            
+            loss = torch.mean((K - Q) ** 2)
+
             # Optional weight decay on feature_model parameters.
             if weight_decay is not None:
                 loss += weight_decay * torch.norm(
@@ -270,17 +281,18 @@ class ScaLLA:
                 )
 
             if verbose:
-                tq.set_postfix({"Loss": loss.item()})  
+                tq.set_postfix({"Loss": loss.item()})
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
 
             losses.append(loss.item())
 
         with torch.no_grad():
-            for x, y in tqdm(train_loader, desc="Building approximate GGN", disable=not verbose):
+            for x, y in tqdm(
+                train_loader, desc="Building approximate GGN", disable=not verbose
+            ):
                 x = x.to(self.device).to(self.dtype)
                 y = y.to(self.device)
 
@@ -300,8 +312,7 @@ class ScaLLA:
 
                 self.loss += loss_batch.detach()
                 self.H += H_batch.detach()
-                
-                
+
         # -- Step 3: Hyperparameter optimization (optional) --
         losses2 = []
         if optimize_hyper_parameters:
@@ -309,7 +320,11 @@ class ScaLLA:
             log_prior = torch.zeros(1, requires_grad=True, device=self.device)
             hyper_optimizer = torch.optim.Adam([log_prior, log_sigma], lr=prior_opt_lr)
 
-            hyper_iter = tqdm(range(prior_opt_iterations), desc="Optimizing Hyper-parameters", disable=not verbose)
+            hyper_iter = tqdm(
+                range(prior_opt_iterations),
+                desc="Optimizing Hyper-parameters",
+                disable=not verbose,
+            )
             for _ in hyper_iter:
                 hyper_optimizer.zero_grad()
                 neg_marglik = -self.log_marginal_likelihood(
@@ -323,11 +338,10 @@ class ScaLLA:
             # Update the internal hyperparameters after optimization.
             self.prior_precision = log_prior.exp().item()
             self.sigma_noise = log_sigma.exp().item()
-            
+
         self.feature_model.eval()
 
         return losses, losses_exact
-            
 
     def _true_jacobian(self, X: torch.Tensor, Y: torch.Tensor):
         """
@@ -354,7 +368,9 @@ class ScaLLA:
         dual_params = {}
         params = {name: p for name, p in self.model.named_parameters()}
         # Generate random tangents for each parameter.
-        tangents = {name: torch.sign(torch.rand_like(p)-0.5) for name, p in params.items()}
+        tangents = {
+            name: torch.sign(torch.rand_like(p) - 0.5) for name, p in params.items()
+        }
 
         # Use forward-mode AD to generate the JVP.
         with fwAD.dual_level():
@@ -364,7 +380,6 @@ class ScaLLA:
             _, jvp = fwAD.unpack_dual(out)
 
         return jvp.detach()
-    
 
     def log_marginal_likelihood(
         self,
@@ -413,7 +428,9 @@ class ScaLLA:
         if self.n_features is None:
             raise RuntimeError("n_features is not set. Ensure `fit` has been called.")
         eye = torch.eye(self.n_features, device=self.device, dtype=self.dtype)
-        self._posterior_scale = _precision_to_scale_tril(self.posterior_precision + 1e-6 * eye).to(self.dtype)
+        self._posterior_scale = _precision_to_scale_tril(
+            self.posterior_precision + 1e-6 * eye
+        ).to(self.dtype)
 
     @property
     def scatter(self):
@@ -451,7 +468,9 @@ class ScaLLA:
         )
         if prior_prec.ndim == 0 or len(prior_prec) == 1:
             if self.n_features is None:
-                raise RuntimeError("n_features is not set. Ensure `fit` has been called.")
+                raise RuntimeError(
+                    "n_features is not set. Ensure `fit` has been called."
+                )
             return prior_prec * torch.ones(self.n_features, device=self.device)
         elif len(prior_prec) == self.n_features:
             return prior_prec
@@ -558,7 +577,7 @@ class ScaLLA:
         torch.Tensor
             Scalar factor for self.H.
         """
-        sigma2 = self.sigma_noise**2
+        sigma2 = self.sigma_noise ** 2
         return 1 / sigma2
 
     @property
@@ -580,9 +599,20 @@ class ScaLLA:
         """
         factor = -self._H_factor
         if self.likelihood == "regression":
-            if self.num_train is None or self.n_outputs is None or self.sigma_noise is None:
-                raise RuntimeError("num_train, n_outputs, or sigma_noise is not set. Ensure `fit` has been called.")
-            c = 0.5 * self.num_train * self.n_outputs * torch.log(2 * torch.pi * self.sigma_noise**2)
+            if (
+                self.num_train is None
+                or self.n_outputs is None
+                or self.sigma_noise is None
+            ):
+                raise RuntimeError(
+                    "num_train, n_outputs, or sigma_noise is not set. Ensure `fit` has been called."
+                )
+            c = (
+                0.5
+                * self.num_train
+                * self.n_outputs
+                * torch.log(2 * torch.pi * self.sigma_noise ** 2)
+            )
             return factor * self.loss - c
         else:
             return factor * self.loss
@@ -643,8 +673,8 @@ class ScaLLA:
         F_mean, F_var = self.forward(x)
         if self.likelihood == "regression":
             # For scalar output, the shape might be simpler. Adjust if you have multi-dimensional outputs.
-            F_var = F_var.squeeze(-1) + self.sigma_noise**2
-        return F_mean * self.y_std + self.y_mean, F_var * self.y_std**2
+            F_var = F_var.squeeze(-1) + self.sigma_noise ** 2
+        return F_mean * self.y_std + self.y_mean, F_var * self.y_std ** 2
 
     @property
     def prior_precision(self):

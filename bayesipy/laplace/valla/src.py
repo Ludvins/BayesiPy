@@ -81,7 +81,7 @@ class VaLLA(torch.nn.Module):
                                  `num_inducing` must be provided"
                 )
             else:
-                self.initialize_inducing_locations : Any = inducing_locations
+                self.initialize_inducing_locations: Any = inducing_locations
                 self.num_inducing = num_inducing
 
         else:
@@ -247,9 +247,10 @@ class VaLLA(torch.nn.Module):
         if self.likelihood == "regression":
             noise_variance = torch.exp(self.log_noise_variance)
 
-            return F_mean * self.y_std + self.y_mean, (
-                F_var.squeeze(-1) + noise_variance
-            ) * self.y_std**2
+            return (
+                F_mean * self.y_std + self.y_mean,
+                (F_var.squeeze(-1) + noise_variance) * self.y_std ** 2,
+            )
 
         else:
             return F_mean, F_var
@@ -324,12 +325,16 @@ class VaLLA(torch.nn.Module):
                 / torch.sqrt(2 * torch.pi * variance) ** alpha
             )
 
-            logpdf = gaussian_logdensity(F_mean, F_var.squeeze(-1) + variance / alpha, y)
+            logpdf = gaussian_logdensity(
+                F_mean, F_var.squeeze(-1) + variance / alpha, y
+            )
             logpdf = logpdf + torch.log(C)
             logpdf = logpdf / alpha
         else:
             # Compute scaled logits
-            F = F_mean / torch.sqrt(1 + torch.pi / 8 * torch.diagonal(F_var, dim1=1, dim2=2))
+            F = F_mean / torch.sqrt(
+                1 + torch.pi / 8 * torch.diagonal(F_var, dim1=1, dim2=2)
+            )
             # Compute probabilities
             probs = F.softmax(-1) ** alpha
 
@@ -367,7 +372,10 @@ class VaLLA(torch.nn.Module):
         self.inducing_locations = torch.nn.Parameter(inducing_locations)
         if self.likelihood == "classification":
             self.inducing_class = (
-                torch.concatenate(classes, axis=0).flatten().to(self.device).to(torch.long)
+                torch.concatenate(classes, axis=0)
+                .flatten()
+                .to(self.device)
+                .to(torch.long)
             )
         else:
             self.inducing_classes = torch.zeros(
@@ -383,9 +391,13 @@ class VaLLA(torch.nn.Module):
             training_targets.append(targets)
         training_data = torch.cat(training_data, axis=0)
         training_targets = torch.cat(training_targets, axis=0)
-                
+
         # If needed convert one-hot into numerical
-        if self.likelihood == "classification" and len(training_targets.shape) > 1 and  training_targets.shape[1] > 1:
+        if (
+            self.likelihood == "classification"
+            and len(training_targets.shape) > 1
+            and training_targets.shape[1] > 1
+        ):
             training_targets = training_targets.argmax(dim=1)
 
         if self.likelihood == "regression":
@@ -419,7 +431,9 @@ class VaLLA(torch.nn.Module):
                     minit="points",
                     seed=self.seed,
                 )[0]
-                z = z.reshape(self.num_inducing // self.output_dim, *training_data.shape[1:])
+                z = z.reshape(
+                    self.num_inducing // self.output_dim, *training_data.shape[1:]
+                )
                 z = torch.tensor(z).to(self.device).to(self.dtype)
 
                 self.inducing_locations.append(z)
@@ -463,7 +477,9 @@ class VaLLA(torch.nn.Module):
                 self._initialize_kmeans_inducing_locations(train_loader)
                 print("done")
 
-        self.backend = BackPackInterface(model=self.model[0], output_dim=self.output_dim)
+        self.backend = BackPackInterface(
+            model=self.model[0], output_dim=self.output_dim
+        )
 
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
 
@@ -500,7 +516,9 @@ class VaLLA(torch.nn.Module):
                 if i % val_steps == 0:
                     cur_score = self._validate(val_loader)
                     if metrics_cls is not None:
-                        stored_metrics.append(score(self, val_loader, metrics_cls, verbose))
+                        stored_metrics.append(
+                            score(self, val_loader, metrics_cls, verbose)
+                        )
 
                     print(cur_score, best_score)
                     if cur_score < best_score:
@@ -524,7 +542,9 @@ class VaLLA(torch.nn.Module):
                 Fmean, Fvar = self.predict(inputs)
 
                 if self.likelihood == "regression":
-                    nll = -gaussian_logdensity(Fmean.squeeze(), Fvar.squeeze(), target.squeeze())
+                    nll = -gaussian_logdensity(
+                        Fmean.squeeze(), Fvar.squeeze(), target.squeeze()
+                    )
                 else:
                     chol = safe_cholesky(Fvar)
                     z = torch.randn(
