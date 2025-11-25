@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BayesiPy 1D Playground</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>BayesiPy 1D Playground</h1>
+      <div class="subtitle">
+        Click to create data • Train an MLP • Wrap it with FMGP / LLA / ELLA / VaLLA / MFVI / SNGP
+      </div>
+    </div>
+    <div class="subtitle">
+      Backend: <code class="inline">/api/train_mlp</code>, <code class="inline">/api/predict_1d</code>
+    </div>
+  </header>
+
+  <main class="app">
+    <!-- Left: canvas -->
+    <section class="card">
+      <h2>
+        Interactive 1D dataset
+        <span class="pill">canvas demo</span>
+      </h2>
+      <div class="small">
+        Left-click to add points. The x-axis spans <code class="inline">[-5, 5]</code>, y-axis <code class="inline">[-5, 5]</code> in data space.
+      </div>
+
+      <div class="plot-container">
+        <canvas id="plot" width="640" height="380"></canvas>
+        <div class="hint">
+          Click to add points · <code class="inline">Train MLP</code> then <code class="inline">Run method</code>
+        </div>
+      </div>
+
+      <div class="controls-row">
+        <div class="left">
+          <button class="btn btn-danger" id="btn-clear">
+            <span class="icon">🧹</span>Clear points
+          </button>
+        </div>
+        <div class="right">
+          <span class="small">Grid points: <code class="inline" id="grid-count">200</code></span>
+        </div>
+      </div>
+
+      <div class="status" id="status"></div>
+    </section>
+
+    <!-- Right: MLP card (left) + BayesiPy card (right) -->
+    <aside class="right-panel">
+      <section class="card" id="card-mlp">
+        <h2>
+          MLP base model
+          <span class="pill">MAP / feature extractor</span>
+        </h2>
+        <div class="small">
+          This MLP is trained on your clicked points and used as the base network for all BayesiPy methods.
+        </div>
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="mlp-epochs">Epochs</label>
+            <input id="mlp-epochs" type="number" value="200" min="1" />
+          </div>
+          <div class="field">
+            <label for="mlp-lr">Learning rate</label>
+            <input id="mlp-lr" type="number" step="0.0001" value="0.01" />
+          </div>
+          <div class="field">
+            <label for="mlp-hidden">Hidden units</label>
+            <input id="mlp-hidden" type="number" value="32" min="1" />
+          </div>
+          <div class="field">
+            <label for="mlp-dropout">Dropout</label>
+            <input id="mlp-dropout" type="number" step="0.05" value="0.0" min="0" max="0.9" />
+          </div>
+        </div>
+
+        <div class="controls-row" style="margin-top: 10px;">
+          <div class="left">
+            <button class="btn btn-primary" id="btn-train-mlp">
+              <span class="icon">▶</span>Train MLP (MAP)
+            </button>
+          </div>
+          <div class="right">
+            <button class="btn" id="btn-predict-mlp">
+              <span class="icon">📈</span>Predict with stored MLP
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="card-bayesipy">
+        <h2>
+          BayesiPy methods
+          <span class="pill">FMGP / Laplace / VI / SNGP</span>
+        </h2>
+        <div class="small">
+          Select a method and run it on the current dataset. Method-specific options appear only for the chosen method.
+        </div>
+
+        <div class="field">
+          <label for="method-select">Method</label>
+          <select id="method-select">
+            <option value="map">MAP (MLP + σ²)</option>
+            <option value="fmgp">FMGP</option>
+            <option value="lla">LLA</option>
+            <option value="ella">ELLA</option>
+            <option value="valla">VaLLA</option>
+            <option value="mfvi">MFVI</option>
+            <option value="sngp">SNGP</option>
+          </select>
+        </div>
+
+        <div class="divider"></div>
+        <div class="small">Generic method hyperparameters</div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="opt-noise-var">Noise variance</label>
+            <input id="opt-noise-var" type="number" step="0.0001" value="0.01" />
+          </div>
+          <div class="field">
+            <label for="opt-iterations">Method iterations</label>
+            <input id="opt-iterations" type="number" value="2000" />
+          </div>
+          <div class="field">
+            <label for="opt-lr">Method LR</label>
+            <input id="opt-lr" type="number" step="0.0001" value="0.001" />
+          </div>
+          <div class="field">
+            <label for="opt-grid-n">Grid points</label>
+            <input id="opt-grid-n" type="number" value="200" min="20" />
+          </div>
+        </div>
+
+        <!-- FMGP options -->
+        <div id="block-fmgp" class="method-options">
+          <div class="divider"></div>
+          <div class="small">FMGP options</div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="opt-fmgp-num-inducing">Num inducing</label>
+              <input id="opt-fmgp-num-inducing" type="number" value="2" />
+            </div>
+            <div class="field">
+              <label for="opt-fmgp-inducing-locs">Inducing Points</label>
+              <select id="opt-fmgp-inducing-locs">
+                <option value="kmeans">kmeans</option>
+                <option value="random">random</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- LLA options -->
+        <div id="block-lla" class="method-options">
+          <div class="divider"></div>
+          <div class="small">LLA options</div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="opt-lla-subset">LLA Subset</label>
+              <select id="opt-lla-subset">
+                <option value="all">all</option>
+                <option value="last_layer">last layer</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="opt-lla-hessian">LLA Hessian</label>
+              <select id="opt-lla-hessian">
+                <option value="full">full</option>
+                <option value="diag">diag</option>
+                <option value="kron">kron</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ELLA / VaLLA options -->
+        <div id="block-ella" class="method-options">
+          <div class="divider"></div>
+          <div class="small">ELLA options</div>
+
+          <!-- ELLA-specific options -->
+          <div id="options-ella" class="field-grid">
+            <div class="field">
+              <label for="opt-ella-subsample">ELLA subsample</label>
+              <input id="opt-ella-subsample" type="number" value="5" />
+            </div>
+            <div class="field">
+              <label for="opt-ella-neigs">ELLA eigenvalues</label>
+              <input id="opt-ella-neigs" type="number" value="5" />
+            </div>
+            <div class="field">
+              <label for="opt-ella-prior">ELLA prior</label>
+              <input id="opt-ella-prior" type="number" step="0.1" value="1.0" />
+            </div>
+            <div class="field">
+              <label for="opt-ella-noise-var">ELLA noise variance</label>
+              <input id="opt-ella-noise-var" type="number" step="0.1" value="1.0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- MFVI options -->
+        <div id="block-mfvi" class="method-options">
+          <div class="divider"></div>
+          <div class="small">MFVI options</div>
+          <div id="options-mfvi" class="field-grid">
+            <div class="field">
+              <label for="opt-mfvi-samples">MFVI samples</label>
+              <input id="opt-mfvi-samples" type="number" value="20" />
+            </div>
+            <div class="field">
+              <label for="opt-mfvi-prior">MFVI prior</label>
+              <input id="opt-mfvi-prior" type="number" step="0.1" value="1.0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- VALLA options -->
+        <div id="block-valla" class="method-options">
+          <div class="divider"></div>
+          <div class="small">VALLA options</div>
+          <div id="options-valla" class="field-grid">
+            <div class="field">
+              <label for="opt-valla-num-inducing">VaLLA num inducing</label>
+              <input id="opt-valla-num-inducing" type="number" value="2" />
+            </div>
+            <div class="field">
+              <label for="opt-valla-noise-var">VaLLA noise variance</label>
+              <input id="opt-valla-noise-var" type="number" step="0.1" value="1.0" />
+            </div>
+            <div class="field">
+              <label for="opt-valla-prior">VaLLA prior</label>
+              <input id="opt-valla-prior" type="number" step="0.1" value="1.0" />
+            </div>
+            <div class="field">
+              <label for="opt-valla-inducing-locs">Inducing Points</label>
+              <select id="opt-valla-inducing-locs">
+                <option value="kmeans">kmeans</option>
+                <option value="random">random</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- SNGP options -->
+        <div id="block-sngp" class="method-options">
+          <div class="divider"></div>
+          <div class="small">SNGP options</div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="opt-sngp-kernel-scale">Kernel scale</label>
+              <input id="opt-sngp-kernel-scale" type="number" step="0.1" value="1.0" />
+            </div>
+            <div class="field">
+              <label for="opt-sngp-nrf">Random features</label>
+              <input id="opt-sngp-nrf" type="number" value="256" />
+            </div>
+            <div class="field">
+              <label for="opt-sngp-weight-decay">Weight decay</label>
+              <input id="opt-sngp-weight-decay" type="number" step="0.01" value="0.1" />
+            </div>
+          </div>
+        </div>
+
+        <div class="controls-row" style="margin-top: 10px;">
+          <div class="left">
+            <button class="btn btn-primary" id="btn-run-method">
+              <span class="icon">⚙️</span>Run selected method
+            </button>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
