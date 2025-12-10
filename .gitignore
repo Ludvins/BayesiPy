@@ -11,3 +11,4 @@ demos/data
 /bayesipy_uncertainty.egg-info
 /bayesipy.egg-info
 /mlflow
+/mlruns

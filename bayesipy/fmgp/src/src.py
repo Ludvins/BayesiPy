@@ -606,9 +606,11 @@ class FMGP_Base(torch.nn.Module):
         if override:
             data = next(iter(train_loader))
             X = data[0]
-
-            model_output = self.handle_input(X[:1])[1]
-
+            try:
+                model_output = self.handle_input(X[:1])[1]
+            except AttributeError:
+                model_output = self.handle_input(X[0])[1]
+                
             self.set_input_shape(X)
 
             self.output_dim = model_output.shape[-1]

@@ -462,7 +462,10 @@ class VaLLA(torch.nn.Module):
         if override:
             data = next(iter(train_loader))
             X = data[0].to(self.device).to(self.dtype)
-            model_output = self.model[0](X[:1])
+            try:
+                model_output = self.model[0](X[:1])
+            except AttributeError:
+                model_output = self.model[0](X[0])
 
             self.output_dim = model_output.shape[-1]
             self.num_data = len(train_loader.dataset)

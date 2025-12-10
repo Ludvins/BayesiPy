@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import scipy as sp
+from sklearn.metrics import roc_auc_score
 import torch
 from properscoring import crps_gaussian
 from scipy.stats import norm
@@ -409,6 +410,7 @@ class OOD(Metrics):
         super().reset()
         self.labels = []
         self.preds = []
+        self.preds_gauss = []
         self.generator.manual_seed(2147483647)
 
     def update(self, y, Fmean, Fvar):
@@ -443,16 +445,30 @@ class OOD(Metrics):
         probs = probs.mean(0)
         # Compute Entropy
         H = -torch.sum(probs * probs.log(), -1)
+        # Compute Gaussian Entropy
+        H_gauss = 0.5 * torch.logdet(2 * np.pi * np.e * Fvar)
         # Store Monte-Carlo entropy
         self.preds.append(H)
+        self.preds_gauss.append(H_gauss)
 
         # Store labels
         self.labels.append(y)
 
     def get_dict(self):
+        
+        # Compute OOD AUC
+        
+        labels = torch.cat(self.labels).cpu().numpy()
+        preds = torch.cat(self.preds).cpu().numpy()
+        preds_gauss = torch.cat(self.preds_gauss).cpu().numpy()
+        auc = roc_auc_score(labels, preds)
+        auc_gauss = roc_auc_score(labels, preds_gauss)
+        
         return {
             "labels": torch.cat(self.labels).cpu().numpy(),
             "preds": torch.cat(self.preds).cpu().numpy(),
+            "auc": auc,
+            "auc_gauss": auc_gauss,
         }
 
 
@@ -483,7 +499,9 @@ class OOD_Samples(Metrics):
                      Usable to compute the log likelihood metric.
         """
         super().update(y, F, None)
-
+        if F.dim() == 2:
+            F = F.unsqueeze(0)
+        
         # Compute probabilities
         probs = F.softmax(-1)
         # Average on sample dimension
@@ -497,9 +515,16 @@ class OOD_Samples(Metrics):
         self.labels.append(y)
 
     def get_dict(self):
+        
+        # Compute OOD AUC
+        labels = torch.cat(self.labels).cpu().numpy()
+        preds = torch.cat(self.preds).cpu().numpy()
+        auc = roc_auc_score(labels, preds)
+        
         return {
             "labels": torch.cat(self.labels).cpu().numpy(),
             "preds": torch.cat(self.preds).cpu().numpy(),
+            "auc": auc,
         }
 
 

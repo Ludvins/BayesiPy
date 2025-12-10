@@ -1,13 +1,15 @@
 import os
 from io import BytesIO
+import tarfile
 from urllib.request import urlopen
 from zipfile import ZipFile
-
+from PIL import Image
 import numpy as np
 import pandas as pd
 import torch
 import torch.utils
 import torchvision
+import urllib
 from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from torch.utils.data import DataLoader, Dataset, TensorDataset
@@ -163,7 +165,7 @@ class SPGP_Dataset:
             self.train.inputs_std,
         )
 
-    def get_splits(self):
+    def train_test_splits(self):
         return self.train, self.test
 
     def train_size(self):
@@ -195,7 +197,7 @@ class Synthetic_Dataset:
             self.train.inputs_std,
         )
 
-    def get_splits(self):
+    def train_test_splits(self):
         return self.train, self.test
 
     def train_size(self):
@@ -221,7 +223,7 @@ class MNIST_Dataset:
             transform=transform,
         )
 
-    def get_splits(self):
+    def train_test_splits(self):
         return self.train, self.test
 
     def train_size(self):
@@ -264,7 +266,7 @@ class MNIST_OOD_Dataset:
 
         self.test = TensorDataset(ood_test_data, ood_test_targets)
 
-    def get_splits(self):
+    def train_test_splits(self):
         return self.train, self.test
 
     def train_size(self):
@@ -347,6 +349,100 @@ class CIFAR10_Dataset:
     def len_train(self):
         return len(self.train)
 
+def download_cifar10_c(data_root: str = "./data") -> str:
+    """
+    Download CIFAR-10-C to `data_root` if it's not already present.
+
+    Returns
+    -------
+    cifar10_c_root : str
+        Path to the extracted CIFAR-10-C directory.
+    """
+    cifar10_c_root = os.path.join(data_root, "CIFAR-10-C")
+    if os.path.isdir(cifar10_c_root):
+        return cifar10_c_root
+
+    os.makedirs(data_root, exist_ok=True)
+    tar_path = os.path.join(data_root, "CIFAR-10-C.tar")
+    url = "https://zenodo.org/record/2535967/files/CIFAR-10-C.tar?download=1"
+
+    if not os.path.exists(tar_path):
+        print(f"Downloading CIFAR-10-C from {url} to {tar_path}...")
+        urllib.request.urlretrieve(url, tar_path)
+
+    print(f"Extracting CIFAR-10-C from {tar_path} into {data_root}...")
+    with tarfile.open(tar_path, "r:*") as tar:
+        tar.extractall(path=data_root)
+
+    return cifar10_c_root
+
+
+class CIFAR10C_Dataset(Dataset):
+    """
+    CIFAR-10-C test dataset.
+
+    This dataset uses the official CIFAR-10-C release (Hendrycks & Dietterich).
+    It loads all corruption types at a single severity (default = 5) from the
+    test set.
+
+    Notes
+    -----
+    - CIFAR-10-C contains 19 corruption types (plus extra in newer versions),
+      each with 50,000 test images corresponding to the original test set,
+      arranged as 10,000 images per severity (1-5).
+    - We take a slice corresponding to the chosen severity for each corruption,
+      and concatenate over corruptions.
+    """
+
+    def __init__(
+        self,
+        root: str = "./data",
+        transform=None,
+        severity: int = None,
+        type: int = None,
+    ) -> None:
+        super().__init__()
+        self.root = download_cifar10_c(root)
+        self.transform = transform
+        self.severity = int(severity)
+        self.type = int(type)
+        if not (1 <= self.severity <= 5):
+            raise ValueError("CIFAR-10-C severity must be in [1, 5].")
+        if not (1 <= self.type <= 19):
+                raise ValueError("CIFAR-10-C corruption types must be in [1, 19].")
+        self.data, self.targets = self._load_data()
+
+    def _load_data(self):
+        corrupted_data_path = "./data/CIFAR-10-C/"
+        corrupted_data_files = os.listdir(corrupted_data_path)
+        corrupted_data_files.remove('labels.npy')
+
+        if 'README.txt' in corrupted_data_files:
+            corrupted_data_files.remove('README.txt')
+        labels = torch.from_numpy(
+            np.load(os.path.join(corrupted_data_path, 'labels.npy'), allow_pickle=True)).long()[:10000]
+        
+        corrupted_data_file = corrupted_data_files[self.type - 1]
+        map = np.lib.format.open_memmap(corrupted_data_path + corrupted_data_file, mode='r+')
+        subset = map[(self.severity-1)*10000:self.severity*10000]
+
+        return subset, labels
+
+    def __len__(self) -> int:
+        return len(self.targets)
+
+    def __getitem__(self, idx: int):
+        img = self.data[idx]  # HWC, uint8
+        target = int(self.targets[idx])
+
+        img = Image.fromarray(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, target
+
+
 
 class CIFAR10_Rotated_Dataset:
     def __init__(self, angle, data_dir="./data/", transform=None):
@@ -398,7 +494,7 @@ class CIFAR10_OOD_Dataset:
         )
         test2 = datasets.SVHN(
             root=data_dir,
-            train=False,
+            split="test",
             download=True,
             transform=transform,
         )
@@ -412,10 +508,9 @@ class CIFAR10_OOD_Dataset:
         ood_test_targets = np.concatenate(
             [np.zeros(test_inputs.shape[0]), np.ones(test2_inputs.shape[0])]
         ).reshape(-1, 1)
+        self.test = TensorDataset(torch.tensor(ood_test_data), torch.tensor(ood_test_targets))
 
-        self.test = TensorDataset(ood_test_data, ood_test_targets)
-
-    def get_splits(self):
+    def train_test_splits(self):
         return self.train, self.test
 
     def train_size(self):
