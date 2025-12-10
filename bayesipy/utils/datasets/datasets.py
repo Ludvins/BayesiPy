@@ -1,15 +1,16 @@
 import os
-from io import BytesIO
 import tarfile
+import urllib
+from io import BytesIO
 from urllib.request import urlopen
 from zipfile import ZipFile
-from PIL import Image
+
 import numpy as np
 import pandas as pd
 import torch
 import torch.utils
 import torchvision
-import urllib
+from PIL import Image
 from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from torch.utils.data import DataLoader, Dataset, TensorDataset
@@ -398,12 +399,16 @@ class CIFAR10C_Dataset(Dataset):
         self,
         root: str = "./data",
         transform=None,
-        severity: int = None,
-        type: int = None,
+        severity: int | None = None,
+        type: int | None = None,
     ) -> None:
         super().__init__()
         self.root = download_cifar10_c(root)
         self.transform = transform
+        if severity is None:
+            raise ValueError("CIFAR-10-C severity must be specified.")
+        if type is None:
+            raise ValueError("CIFAR-10-C corruption type must be specified.")
         self.severity = int(severity)
         self.type = int(type)
         if not (1 <= self.severity <= 5):

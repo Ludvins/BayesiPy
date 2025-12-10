@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import numpy as np
 import scipy as sp
-from sklearn.metrics import roc_auc_score
 import torch
 from properscoring import crps_gaussian
 from scipy.stats import norm
+from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 
 from bayesipy.utils import gaussian_logdensity, safe_cholesky
