@@ -246,11 +246,6 @@ def train_fmgp(train_loader, feature_dim, tau, epochs=1, lr=1e-3, num_inducing=2
         inducing_locations="kmeans",
         num_inducing=num_inducing,
         noise_variance=np.exp(-5),
-        subrogate_regularizer=True,
-        # initial_bias=0,
-        # initial_scale=1.0,
-        #y_mean=y_mean,
-        #y_std=y_std
     )
     print("Initial fmgp.bias:", fmgp.bias, "fmgp.scale:", fmgp.scale)
     loss = fmgp.fit(

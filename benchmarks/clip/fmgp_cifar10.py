@@ -245,15 +245,12 @@ def train_fmgp(train_loader, test_loader, feature_dim, tau, iterations=1, lr=1e-
         inducing_locations="kmeans",
         mc_softmax_samples=1024,
         num_inducing=num_inducing,
-        subrogate_regularizer=False,
     )
 
     loss = fmgp.fit(
         iterations=iterations,
         lr=lr,
         train_loader=train_loader,
-        #val_loader=test_loader,
-        #val_steps=100,
         metrics_cls=SoftmaxClassification,
         verbose=True
     )

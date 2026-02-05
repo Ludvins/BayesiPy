@@ -237,7 +237,6 @@ def build_estimator(
             classifier=classifier,
             likelihood="classification",
             kernel=args.fmgp_kernel,
-            subrogate_regularizer=True,
             inducing_locations=args.fmgp_inducing_locations,
             num_inducing=args.fmgp_num_inducing,
             seed=args.seed,

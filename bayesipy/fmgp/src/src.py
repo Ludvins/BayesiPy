@@ -47,7 +47,6 @@ class FMGP_Base(torch.nn.Module):
         likelihood: str,
         kernel: str | Callable,
         noise_variance: Optional[float] = -1,
-        subrogate_regularizer: bool = True,
         inducing_locations=None,
         inducing_classes=None,
         num_inducing=None,
@@ -73,12 +72,13 @@ class FMGP_Base(torch.nn.Module):
             self.device = device
             self.dtype = dtype
 
-        if mc_softmax_samples > 0:
-            print(
-                f"[FMGP] Using MC Softmax with {mc_softmax_samples} samples to compute the probabilities."
-            )
-        else:
-            print("[FMGP] Not using MC Softmax. Using Softmax approximation.")
+        if likelihood == "classification":
+            if mc_softmax_samples > 0:
+                print(
+                    f"[FMGP] Using MC Softmax with {mc_softmax_samples} samples to compute the probabilities."
+                )
+            else:
+                print("[FMGP] Not using MC Softmax. Using Softmax approximation.")
         self.mc_softmax_samples = mc_softmax_samples
 
         assert likelihood in ["regression", "classification"]
@@ -91,8 +91,6 @@ class FMGP_Base(torch.nn.Module):
                 torch.log(torch.tensor(noise_variance)).to(self.device).to(self.dtype)
             )
             self.log_noise_variance = torch.nn.Parameter(self.log_noise_variance)
-
-        self.subrogate_regularizer = subrogate_regularizer
 
         self.y_mean = torch.tensor(y_mean).to(self.device).to(self.dtype)
         self.y_std = torch.tensor(y_std).to(self.device).to(self.dtype)
@@ -140,12 +138,6 @@ class FMGP_Base(torch.nn.Module):
         self.seed = 2147483647 - seed
 
     def _initialize_parameters(self):
-
-        if self.subrogate_regularizer:
-            self.q_mu = torch.zeros(
-                (self.num_inducing, 1), device=self.device, dtype=self.dtype
-            )
-            self.q_mu = torch.nn.Parameter(self.q_mu)
 
         # Initialize cholesky decomposition of identity
         eye = np.eye(self.num_inducing)
@@ -239,8 +231,8 @@ class FMGP_Base(torch.nn.Module):
         # self.A = torch.einsum("nm, ml, kl -> nk", L, torch.inverse(self.H), L)
         self.A = L @ torch.linalg.solve(self.H, L.T)
 
-    def _subrogate_sgp_forward(self, X):
-        """Computes the predictive mean and variance of the model.
+    def _variational_variance(self, X):
+        """Computes the predictive variance of the model.
 
         Parameters
         ----------
@@ -294,23 +286,13 @@ class FMGP_Base(torch.nn.Module):
         # Shape [batch_size, output_dim, output_dim]
         Fvar = Kx_diag - diag
 
-        if self.subrogate_regularizer:
-            self.Kz_inv = torch.linalg.inv(
-                self.Kz + 1e-3 * torch.eye(self.num_inducing).to(self.device)
-            )
-            aux = self.Kz_inv @ self.q_mu
-            Q_mean = torch.einsum("nma, m -> na", Kxz, aux.squeeze(-1))
-
-        else:
-            Q_mean = torch.zeros((batch_size, self.output_dim), device=self.device)
-
-        return Q_mean, Fvar
+        return Fvar
 
     def forward(self, X):
         # Compute predictive mean
         X, F_mean = self.handle_input(X)
 
-        _, Fvar = self._subrogate_sgp_forward(X)
+        Fvar = self._variational_variance(X)
 
         return F_mean, Fvar
 
@@ -331,7 +313,7 @@ class FMGP_Base(torch.nn.Module):
         """
         # Compute predictive mean and variance
         X, F_mean = self.handle_input(X)
-        _, F_var = self._subrogate_sgp_forward(X)
+        F_var = self._variational_variance(X)
         # Add Likelihood noise
         if self.likelihood == "regression":
             noise_variance = torch.exp(self.log_noise_variance)
@@ -358,19 +340,6 @@ class FMGP_Base(torch.nn.Module):
         KL = 0.5 * log_det - 0.5 * trace
         return torch.sum(KL)
 
-    def _compute_mean_term_KL(self):
-        """Compute the KL divergence of the model.
-
-        Returns
-        -------
-        torch Tensor of shape ()
-            Contains the KL divergence of the model.
-
-        """
-        KL = 0.5 * self.q_mu.T @ self.Kz_inv @ self.q_mu
-        KL = torch.sum(KL)
-        return KL
-
     def loss(self, X, y):
         """Compute the loss of the model.
 
@@ -387,7 +356,7 @@ class FMGP_Base(torch.nn.Module):
             Contains the loss of the model.
         """
         X, F_mean = self.handle_input(X)
-        Q_mean, F_var = self._subrogate_sgp_forward(X)
+        F_var = self._variational_variance(X)
         # Compute divergence term
         divergence = self.alpha_divergence(F_mean, F_var, y)
         # Scale loss term corresponding to minibatch size
@@ -397,12 +366,6 @@ class FMGP_Base(torch.nn.Module):
         # Compute KL term
         KL_var = self._compute_variance_term_KL()
         loss = -scale * divergence + KL_var
-
-        if self.subrogate_regularizer:
-            _sgd_divergence = self.alpha_divergence(Q_mean, F_var, y)
-            KL_mean = self._compute_mean_term_KL()
-
-            loss += -scale * _sgd_divergence + KL_mean + KL_var
 
         return loss
 
@@ -704,7 +667,6 @@ class FMGP_Embedding(FMGP_Base):
         likelihood: str,
         kernel: str | Callable,
         noise_variance: Optional[float] = None,
-        subrogate_regularizer: bool = True,
         inducing_locations=None,
         inducing_classes=None,
         num_inducing=None,
@@ -729,7 +691,6 @@ class FMGP_Embedding(FMGP_Base):
             likelihood=likelihood,
             kernel=kernel,
             noise_variance=noise_variance,
-            subrogate_regularizer=subrogate_regularizer,
             inducing_locations=inducing_locations,
             inducing_classes=inducing_classes,
             num_inducing=num_inducing,
@@ -902,7 +863,7 @@ class FMGP_Embedding(FMGP_Base):
         else:
             super()._create_kernel(length_scale)
 
-    def _subrogate_sgp_forward(self, X):
+    def _variational_variance(self, X):
         """Computes the predictive mean and variance of the model.
 
         Parameters
@@ -925,4 +886,4 @@ class FMGP_Embedding(FMGP_Base):
             with torch.no_grad():
                 embedding = self.embedding(X)
 
-        return super()._subrogate_sgp_forward((X, embedding))
+        return super()._variational_variance((X, embedding))

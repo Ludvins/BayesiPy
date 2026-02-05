@@ -152,7 +152,6 @@ fmgp = FMGP(
     inducing_locations="kmeans",   # how to initialize inducing points (k-means on the training data)
     num_inducing=50,               # number of inducing points (scales the GP complexity)
     noise_variance=np.exp(-5),     # initial noise variance for regression
-    subrogate_regularizer=True,    # stability trick during training
     y_mean=0.0,                    # target mean if data was normalized
     y_std=1.0                      # target std if data was normalized
 )
