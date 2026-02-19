@@ -53,11 +53,16 @@ class FMGP_Base(torch.nn.Module):
         mc_softmax_samples: int = 0,
         y_mean: float = 0,
         y_std: float = 1,
+        alpha: float = 1.0,
         seed=0,
         device=None,
         dtype=None,
     ):
         super().__init__()
+
+        if not (0 <= alpha <= 1):
+            raise ValueError(f"alpha must be in [0, 1], got {alpha}")
+        self.alpha = alpha
 
         self.model = model
         if self.model is not None:
@@ -358,7 +363,7 @@ class FMGP_Base(torch.nn.Module):
         X, F_mean = self.handle_input(X)
         F_var = self._variational_variance(X)
         # Compute divergence term
-        divergence = self.alpha_divergence(F_mean, F_var, y)
+        divergence = self.alpha_divergence(F_mean, F_var, y, self.alpha)
         # Scale loss term corresponding to minibatch size
         scale = self.num_data
         scale /= y.shape[0]
@@ -369,8 +374,11 @@ class FMGP_Base(torch.nn.Module):
 
         return loss
 
-    def alpha_divergence(self, F_mean, F_var, y, alpha=1):
-        """Compute the divergence of the model.
+    def alpha_divergence(self, F_mean, F_var, y, alpha=1.0):
+        """Compute the alpha-divergence of the model.
+
+        For alpha > 0, computes the black-box alpha-energy divergence.
+        For alpha = 0, computes the standard ELBO (expected log-likelihood).
 
         Parameters
         ----------
@@ -380,12 +388,17 @@ class FMGP_Base(torch.nn.Module):
             Contains the predictive variance of the model
         y : torch Tensor of shape (batch_size, output_dim)
             Contains the target values.
+        alpha : float
+            Alpha parameter in [0, 1]. Default is 1.0.
 
         Returns
         -------
         torch Tensor of shape ()
             Contains the divergence of the model.
         """
+        if alpha == 0:
+            return self._elbo(F_mean, F_var, y)
+
         if self.likelihood == "regression":
             # Black-box alpha-energy
             variance = torch.exp(self.log_noise_variance)
@@ -443,7 +456,73 @@ class FMGP_Base(torch.nn.Module):
                 )
             )
 
-        # # Aggregate on data dimension
+        # Aggregate on data dimension
+        return torch.sum(logpdf)
+
+    def _elbo(self, F_mean, F_var, y):
+        """Compute the standard ELBO expected log-likelihood (alpha=0 case).
+
+        Parameters
+        ----------
+        F_mean : torch Tensor of shape (batch_size, output_dim)
+            Contains the predictive mean of the model
+        F_var : torch Tensor of shape (batch_size, output_dim, output_dim)
+            Contains the predictive variance of the model
+        y : torch Tensor of shape (batch_size, output_dim)
+            Contains the target values.
+
+        Returns
+        -------
+        torch Tensor of shape ()
+            Contains the expected log-likelihood.
+        """
+        if self.likelihood == "regression":
+            # E_q[log N(y; f, σ²)] = -0.5 * [log(2πσ²) + ((y - μ)² + F_var) / σ²]
+            variance = torch.exp(self.log_noise_variance)
+            F_var_squeezed = F_var.squeeze(-1)  # (batch_size, output_dim)
+            logpdf = (
+                gaussian_logdensity(F_mean, variance.expand_as(F_var_squeezed), y)
+                - 0.5 * F_var_squeezed / variance
+            )
+        else:
+            # Handle one-hot encoding
+            if y.ndim == 2 and y.shape[1] > 1:
+                y = torch.argmax(y, dim=1, keepdim=True)
+
+            if self.mc_softmax_samples > 0:
+                # E_q[log softmax(f)_y] via MC sampling
+                B = F_mean.shape[0]
+                samples = torch.randn(
+                    (B, self.output_dim, self.mc_softmax_samples),
+                    device=self.device,
+                    dtype=self.dtype,
+                    generator=self.generator,
+                )
+                L = safe_cholesky(F_var)
+                F_samples = F_mean.unsqueeze(-1) + torch.einsum(
+                    "bik,bkj->bij", L, samples
+                )
+                # log softmax per sample: (B, output_dim, mc_softmax_samples)
+                log_probs = F_samples.log_softmax(-2)
+                # Gather target class: (B, 1, mc_softmax_samples)
+                y_idx = (
+                    y.to(torch.long)
+                    .squeeze(-1)
+                    .unsqueeze(-1)
+                    .unsqueeze(-1)
+                    .expand(-1, 1, self.mc_softmax_samples)
+                )
+                log_probs_y = torch.gather(log_probs, 1, y_idx).squeeze(1)  # (B, S)
+                logpdf = log_probs_y.mean(-1)  # (B,)
+            else:
+                # Deterministic probit approximation: E_q[log softmax(f)_y]
+                F = F_mean / torch.sqrt(
+                    1 + torch.pi / 8 * torch.diagonal(F_var, dim1=1, dim2=2)
+                )
+                logpdf = -torch.nn.functional.cross_entropy(
+                    F, y.to(torch.long).squeeze(-1), reduction="none"
+                )
+
         return torch.sum(logpdf)
 
     @torch.no_grad()
@@ -672,6 +751,7 @@ class FMGP_Embedding(FMGP_Base):
         num_inducing=None,
         y_mean: float = 0,
         y_std: float = 1,
+        alpha: float = 1.0,
         seed=0,
         device=None,
         dtype=None,
@@ -696,6 +776,7 @@ class FMGP_Embedding(FMGP_Base):
             num_inducing=num_inducing,
             y_mean=y_mean,
             y_std=y_std,
+            alpha=alpha,
             seed=seed,
             device=device,
             dtype=dtype,
