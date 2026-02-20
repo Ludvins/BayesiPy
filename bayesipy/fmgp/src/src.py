@@ -681,7 +681,7 @@ class FMGP_Base(torch.nn.Module):
                 print("done")
                 print(f"Length scale estimated as {length_scale:.3f}.")
 
-        self._initialize_parameters()
+            self._initialize_parameters()
 
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         if scheduler_gamma is not None:
