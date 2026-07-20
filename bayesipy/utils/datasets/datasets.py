@@ -203,7 +203,51 @@ class Synthetic_Dataset:
 
     def train_size(self):
         return 400
+    
 
+class Heterocedastic_Dataset:
+    def __init__(self):
+        self.type = "regression"
+        self.output_dim = 1
+        rng = np.random.default_rng(0)
+
+        x = rng.uniform(size=1000) * 30 - 15
+        mask = (-2.5 > x) | (x > 6.28)
+        x = x[mask]
+        epsilon = rng.normal(size=len(x)) * 2
+
+        sin = np.sin(x/3)
+
+        y = 5 * sin + epsilon * np.sin(x/2)
+
+        inputs = x
+        targets = y
+
+        test_inputs = np.linspace(np.min(inputs) - 10, np.max(inputs) + 10, 300)
+
+
+        self.train = Training_Dataset(
+            inputs[..., np.newaxis],
+            targets[..., np.newaxis],
+            output_dim=1,
+            normalize_targets=False,
+            normalize_inputs=False,
+        )
+
+        self.test = Test_Dataset(
+            test_inputs[..., np.newaxis],
+            1,
+            None,
+            self.train.inputs_mean,
+            self.train.inputs_std,
+        )
+
+    def train_test_splits(self):
+        return self.train, self.test
+
+    def train_size(self):
+        return 500
+    
 
 class MNIST_Dataset:
     def __init__(self, transform=None):

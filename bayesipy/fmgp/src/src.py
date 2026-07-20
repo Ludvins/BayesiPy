@@ -101,6 +101,7 @@ class FMGP_Base(torch.nn.Module):
         self.y_std = torch.tensor(y_std).to(self.device).to(self.dtype)
 
         self.construct_kernel = isinstance(kernel, str)
+        self._kernel_name = kernel if isinstance(kernel, str) else None
         self.kernel = kernel
 
         if isinstance(inducing_locations, str):
@@ -609,7 +610,8 @@ class FMGP_Base(torch.nn.Module):
             self.num_inducing = len(self.inducing_classes)
 
     def _create_kernel(self, length_scale):
-        if self.kernel == "RBF":
+        kernel_name = self._kernel_name
+        if kernel_name == "RBF":
             self.kernel = SquaredExponential(
                 initial_length_scale=length_scale,
                 initial_amplitude=1,
@@ -618,7 +620,7 @@ class FMGP_Base(torch.nn.Module):
                 device=self.device,
                 dtype=self.dtype,
             )
-        elif self.kernel == "DotProduct":
+        elif kernel_name == "DotProduct":
             self.kernel = DotProduct(
                 initial_length_scale=length_scale,
                 initial_amplitude=1,
@@ -628,7 +630,7 @@ class FMGP_Base(torch.nn.Module):
                 dtype=self.dtype,
             )
         else:
-            raise ValueError("Invalid Kernel")
+            raise ValueError(f"Invalid Kernel: {kernel_name!r}")
 
     def fit(
         self,
@@ -646,18 +648,24 @@ class FMGP_Base(torch.nn.Module):
         losses = []
 
         if override:
+            # Clear parameters that will be re-initialized so that
+            # fit() can safely be called more than once.
+            for attr in ("inducing_locations", "L"):
+                if attr in self._parameters:
+                    del self._parameters[attr]
+
             data = next(iter(train_loader))
             X = data[0]
             try:
                 model_output = self.handle_input(X[:1])[1]
             except AttributeError:
                 model_output = self.handle_input(X[0])[1]
-                
+
             self.set_input_shape(X)
 
             self.output_dim = model_output.shape[-1]
             self.num_data = len(train_loader.dataset)
-            
+
             if self.num_inducing is not None and self.num_inducing > self.num_data:
                 print(
                     f"Warning: number of inducing points ({self.num_inducing}) is greater than the number of data points ({self.num_data}). Setting num_inducing to {self.num_data}."
@@ -932,7 +940,7 @@ class FMGP_Embedding(FMGP_Base):
             )
 
     def _create_kernel(self, length_scale):
-        if self.kernel == "RBFxNTK":
+        if self._kernel_name == "RBFxNTK":
             self.kernel = LastLayerNTK_SquaredExponential(
                 initial_length_scale=np.log(length_scale),
                 initial_amplitude=1,

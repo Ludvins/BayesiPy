@@ -24,9 +24,13 @@ def compute_length_scale_estimation(loader, n_samples=50000):
             data_iter = iter(loader)
             inputs2 = next(data_iter)[0]
 
+        if inputs2.shape[0] != inputs.shape[0]:
+            continue
+
         if B == 1:
             inputs = inputs.unsqueeze(0)
             inputs2 = inputs2.unsqueeze(0)
+
         for a, b in zip(inputs, inputs2, strict=True):
             # Compute distance using numpy
             dist = torch.linalg.vector_norm(a.flatten() - b.flatten(), ord=2) ** 2

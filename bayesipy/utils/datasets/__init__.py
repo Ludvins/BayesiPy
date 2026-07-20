@@ -9,6 +9,7 @@ from .datasets import (
     Precomputed_Output_Embedding_Dataset,
     Rotated_Imagenet_Dataset,
     Synthetic_Dataset,
+    Heterocedastic_Dataset,
     Taxi_Dataset,
     Year_Dataset,
 )
@@ -26,4 +27,5 @@ __all__ = [
     "Imagenet_Dataset",
     "Rotated_Imagenet_Dataset",
     "Synthetic_Dataset",
+    "Heterocedastic_Dataset",
 ]
